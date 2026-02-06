@@ -61,6 +61,14 @@ function initializeDb(db: Database.Database) {
       FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS company_research (
+      id TEXT PRIMARY KEY,
+      findings TEXT,
+      status TEXT DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS intelligence_reports (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,

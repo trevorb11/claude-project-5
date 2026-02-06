@@ -1,25 +1,41 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @theme {
-  --color-bg-primary: #0a0e1a;
-  --color-bg-secondary: #111827;
-  --color-bg-card: #1a2035;
-  --color-bg-card-hover: #1f2847;
-  --color-border: #2a3352;
-  --color-border-highlight: #3b4d7a;
-  --color-text-primary: #e2e8f0;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-accent-blue: #3b82f6;
-  --color-accent-blue-dim: #2563eb;
-  --color-accent-cyan: #06b6d4;
-  --color-accent-emerald: #10b981;
-  --color-accent-amber: #f59e0b;
-  --color-accent-red: #ef4444;
-  --color-accent-purple: #8b5cf6;
-  --color-status-active: #10b981;
-  --color-status-pending: #f59e0b;
-  --color-status-idle: #64748b;
+  /* Builder Studio — Light Theme */
+
+  /* Backgrounds */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #f1f5f9;
+
+  /* Borders */
+  --color-border: #e2e8f0;
+  --color-border-highlight: #cbd5e1;
+
+  /* Text */
+  --color-text-primary: #374151;
+  --color-text-secondary: #6b7280;
+  --color-text-muted: #9ca3af;
+
+  /* Brand Colors — Builder Studio Palette */
+  --color-accent-blue: #1e3a8a;        /* Navy primary */
+  --color-accent-blue-dim: #1e40af;    /* Navy hover */
+  --color-accent-cyan: #0d9488;        /* Teal */
+  --color-accent-emerald: #059669;     /* Green */
+  --color-accent-amber: #ea580c;       /* Builder Studio orange */
+  --color-accent-red: #dc2626;         /* Red for warnings */
+  --color-accent-purple: #1e3a8a;      /* Navy (consolidate with primary) */
+
+  /* Status */
+  --color-status-active: #059669;
+  --color-status-pending: #ea580c;
+  --color-status-idle: #9ca3af;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 * {
@@ -32,19 +48,23 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-accent-blue);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-primary);
+  background: var(--color-bg-secondary);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--color-border-highlight);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border-highlight);
+  background: var(--color-text-muted);
 }
 
 /* Animations */
@@ -59,8 +79,8 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(59, 130, 246, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); }
+  0%, 100% { box-shadow: 0 0 8px rgba(30, 58, 138, 0.15); }
+  50% { box-shadow: 0 0 20px rgba(30, 58, 138, 0.3); }
 }
 
 @keyframes scan-line {
@@ -82,10 +102,12 @@ body {
 
 .card-hover {
   transition: all 0.2s ease;
+  box-shadow: var(--shadow-card);
 }
 .card-hover:hover {
   background-color: var(--color-bg-card-hover);
   border-color: var(--color-border-highlight);
+  box-shadow: var(--shadow-card-hover);
   transform: translateY(-1px);
 }
 
@@ -103,4 +125,9 @@ body {
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--color-accent-cyan), transparent);
   animation: scan-line 2s linear infinite;
+}
+
+/* Card shadow utility */
+.shadow-card {
+  box-shadow: var(--shadow-card);
 }

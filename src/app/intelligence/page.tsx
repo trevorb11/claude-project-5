@@ -389,7 +389,7 @@ function CollapsibleReport({ content }: { content: string }) {
         )}
       </button>
       {open && (
-        <div className="px-5 pb-5 prose prose-invert prose-sm max-w-none">
+        <div className="px-5 pb-5 prose prose-sm max-w-none">
           <div
             className="text-text-secondary text-sm leading-relaxed whitespace-pre-wrap"
           >

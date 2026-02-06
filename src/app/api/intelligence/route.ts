@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import { CompanyProfile, CaseFile, IntelligenceReport } from "@/lib/types";
+import { CompanyProfile, CaseFile, IntelligenceReport, CompanyResearch, CompanyResearchFindings } from "@/lib/types";
 import { generateIntelligenceReport } from "@/lib/research-agent";
 
 export async function GET() {
@@ -50,10 +50,27 @@ export async function POST() {
     findings: JSON.parse(cf.findings!),
   }));
 
+  // Get the latest completed company deep research if available
+  const companyResearchRow = db
+    .prepare(
+      "SELECT * FROM company_research WHERE status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
+    )
+    .get() as CompanyResearch | undefined;
+
+  let companyResearch: CompanyResearchFindings | null = null;
+  if (companyResearchRow?.findings) {
+    try {
+      companyResearch = JSON.parse(companyResearchRow.findings);
+    } catch {
+      // If parsing fails, proceed without company research
+    }
+  }
+
   try {
     const { content, highlights } = await generateIntelligenceReport(
       myCompany,
-      allFindings
+      allFindings,
+      companyResearch
     );
 
     const reportId = uuidv4();

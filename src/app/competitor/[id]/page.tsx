@@ -23,6 +23,8 @@ import {
   ChevronRight,
   Star,
   Calendar,
+  BarChart3,
+  ExternalLink,
 } from "lucide-react";
 import { Competitor, CaseFile, CaseFileFindings } from "@/lib/types";
 
@@ -599,6 +601,74 @@ export default function CompetitorDetailPage() {
               ))}
             </div>
           </Section>
+
+          {/* Competitive Scores */}
+          {findings.competitive_scores && (
+            <Section
+              icon={<BarChart3 className="w-4 h-4 text-accent-purple" />}
+              title="Competitive Scorecard"
+              delay="0.5s"
+              defaultOpen
+            >
+              <div className="space-y-3">
+                {[
+                  { key: "product_strength", label: "Product Strength", color: "bg-accent-blue" },
+                  { key: "market_position", label: "Market Position", color: "bg-accent-emerald" },
+                  { key: "digital_presence", label: "Digital Presence", color: "bg-accent-purple" },
+                  { key: "customer_satisfaction", label: "Customer Satisfaction", color: "bg-accent-amber" },
+                  { key: "pricing_competitiveness", label: "Pricing Competitiveness", color: "bg-accent-cyan" },
+                  { key: "innovation_velocity", label: "Innovation Velocity", color: "bg-accent-blue" },
+                  { key: "overall_threat_level", label: "Overall Threat Level", color: "bg-accent-red" },
+                ].map((dim) => {
+                  const score = findings.competitive_scores[dim.key as keyof typeof findings.competitive_scores];
+                  return (
+                    <div key={dim.key}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-text-secondary">{dim.label}</span>
+                        <span className={`text-xs font-bold ${
+                          score >= 8 ? "text-accent-red" : score >= 6 ? "text-accent-amber" : "text-accent-emerald"
+                        }`}>
+                          {score}/10
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-bg-secondary rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${dim.color}`}
+                          style={{ width: `${score * 10}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
+
+          {/* Sources */}
+          {findings.sources && findings.sources.length > 0 && (
+            <Section
+              icon={<ExternalLink className="w-4 h-4 text-text-muted" />}
+              title={`Sources (${findings.sources.length})`}
+              delay="0.55s"
+            >
+              <div className="space-y-1.5">
+                {findings.sources.map((source, i) => (
+                  <a
+                    key={i}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 bg-bg-secondary rounded-lg hover:bg-bg-card-hover transition-colors group"
+                  >
+                    <ExternalLink className="w-3 h-3 text-text-muted group-hover:text-accent-blue shrink-0" />
+                    <span className="text-xs text-text-secondary group-hover:text-accent-blue truncate">
+                      {source.title}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </Section>
+          )}
         </div>
       )}
     </div>
