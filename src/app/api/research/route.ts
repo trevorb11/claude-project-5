@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import { CompanyProfile, Competitor, CaseFile } from "@/lib/types";
-import { runDeepResearch } from "@/lib/research-agent";
+import { CompanyProfile, Competitor, CaseFile, CompanyResearch, CompanyResearchFindings, CaseFileFindings } from "@/lib/types";
+import { runDeepResearch, runResearchUpdate } from "@/lib/research-agent";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -59,14 +59,58 @@ export async function POST(request: NextRequest) {
     competitor.id
   );
 
-  // Run the research (async, but we await it)
+  // Fetch company deep research if available (for enriched competitor analysis)
+  const companyResearchRow = db
+    .prepare(
+      "SELECT * FROM company_research WHERE status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
+    )
+    .get() as CompanyResearch | undefined;
+
+  let companyResearch: CompanyResearchFindings | null = null;
+  if (companyResearchRow?.findings) {
+    try {
+      companyResearch = JSON.parse(companyResearchRow.findings);
+    } catch {
+      // proceed without company research
+    }
+  }
+
+  // Check for previous completed case file (for update scans)
+  const previousCaseFile = db
+    .prepare(
+      "SELECT * FROM case_files WHERE competitor_id = ? AND status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
+    )
+    .get(competitor.id) as CaseFile | undefined;
+
+  const isUpdateScan = previousCaseFile && (body.research_type === "update" || competitor.research_schedule !== "manual");
+
+  // Run the research
   try {
-    const findings = await runDeepResearch({
-      myCompany,
-      competitorName: competitor.name,
-      competitorWebsite: competitor.website || undefined,
-      competitorNotes: competitor.notes || undefined,
-    });
+    let findings: CaseFileFindings;
+
+    if (isUpdateScan && previousCaseFile?.findings) {
+      // Scheduled / update scan: lightweight web search for changes
+      const previousFindings = JSON.parse(previousCaseFile.findings) as CaseFileFindings;
+      findings = await runResearchUpdate(
+        {
+          myCompany,
+          competitorName: competitor.name,
+          competitorWebsite: competitor.website || undefined,
+          competitorNotes: competitor.notes || undefined,
+          companyResearch,
+        },
+        previousFindings
+      );
+    } else {
+      // Initial deep research: comprehensive analysis with web search
+      findings = await runDeepResearch({
+        myCompany,
+        competitorName: competitor.name,
+        competitorWebsite: competitor.website || undefined,
+        competitorNotes: competitor.notes || undefined,
+        companyResearch,
+      });
+    }
 
     const summary =
       findings.overview.summary.substring(0, 200) + "...";

@@ -97,6 +97,19 @@ export interface CaseFileFindings {
       rationale: string;
     }>;
   };
+  competitive_scores: {
+    product_strength: number;
+    market_position: number;
+    digital_presence: number;
+    customer_satisfaction: number;
+    pricing_competitiveness: number;
+    innovation_velocity: number;
+    overall_threat_level: number;
+  };
+  sources?: Array<{
+    title: string;
+    url: string;
+  }>;
 }
 
 export interface IntelligenceReport {
@@ -182,6 +195,10 @@ export interface CompanyResearchFindings {
       mitigation: string;
     }>;
   };
+  sources?: Array<{
+    title: string;
+    url: string;
+  }>;
 }
 
 export interface IntelligenceHighlights {
