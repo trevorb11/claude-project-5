@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Crosshair,
-  FileText,
   Building2,
   Shield,
 } from "lucide-react";
@@ -24,12 +23,12 @@ export function Sidebar() {
     <aside className="w-64 bg-bg-secondary border-r border-border flex flex-col shrink-0">
       <div className="p-5 border-b border-border">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-lg bg-accent-blue/20 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-accent-blue" />
+          <div className="w-9 h-9 rounded-lg bg-accent-blue flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold tracking-tight text-text-primary">
-              Case Files
+            <h1 className="text-sm font-bold tracking-tight text-accent-blue">
+              Builder Studio
             </h1>
             <p className="text-[11px] text-text-muted tracking-wide uppercase">
               Competitive Intel

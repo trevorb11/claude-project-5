@@ -70,7 +70,7 @@ export default function Dashboard() {
           <div className="w-16 h-16 rounded-2xl bg-accent-blue/20 flex items-center justify-center mx-auto mb-6">
             <Building2 className="w-8 h-8 text-accent-blue" />
           </div>
-          <h1 className="text-2xl font-bold mb-3">Welcome to Case Files</h1>
+          <h1 className="text-2xl font-bold mb-3">Welcome to Builder Studio</h1>
           <p className="text-text-secondary mb-6">
             Before we can build competitive intelligence, we need to understand
             your company. This helps our research agents know what to look for

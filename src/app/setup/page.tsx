@@ -221,8 +221,8 @@ export default function SetupPage() {
             </p>
 
             {researchError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg mb-4">
-                <p className="text-sm text-red-400">{researchError}</p>
+              <div className="p-3 bg-accent-red/10 border border-accent-red/20 rounded-lg mb-4">
+                <p className="text-sm text-accent-red">{researchError}</p>
               </div>
             )}
 
@@ -249,8 +249,8 @@ export default function SetupPage() {
             )}
 
             {research?.status === "error" && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-sm text-red-400">
+              <div className="p-3 bg-accent-red/10 border border-accent-red/20 rounded-lg">
+                <p className="text-sm text-accent-red">
                   Previous research encountered an error. Try running it again.
                 </p>
               </div>
@@ -353,8 +353,8 @@ function CompanyResearchResults({
       key: "strategic_assessment",
       title: "Strategic Assessment",
       icon: Shield,
-      color: "text-amber-400",
-      bgColor: "bg-amber-400/10",
+      color: "text-accent-amber",
+      bgColor: "bg-accent-amber/10",
     },
     {
       key: "recent_activity",
@@ -488,7 +488,7 @@ function SectionContent({
               </ul>
             </div>
             <div>
-              <p className="text-xs font-medium text-red-400 mb-1">
+              <p className="text-xs font-medium text-accent-red mb-1">
                 Weaknesses
               </p>
               <ul className="space-y-1">
@@ -497,7 +497,7 @@ function SectionContent({
                     key={i}
                     className="text-xs text-text-secondary flex items-start gap-1.5"
                   >
-                    <span className="text-red-400 mt-0.5">-</span>
+                    <span className="text-accent-red mt-0.5">-</span>
                     {w}
                   </li>
                 ))}
@@ -522,8 +522,8 @@ function SectionContent({
               ))}
             </ul>
           </div>
-          <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
-            <p className="text-xs font-medium text-red-400 mb-2">Weaknesses</p>
+          <div className="bg-accent-red/5 border border-accent-red/20 rounded-lg p-3">
+            <p className="text-xs font-medium text-accent-red mb-2">Weaknesses</p>
             <ul className="space-y-1">
               {findings.swot_analysis.weaknesses.map((w, i) => (
                 <li key={i} className="text-xs text-text-secondary">
@@ -544,8 +544,8 @@ function SectionContent({
               ))}
             </ul>
           </div>
-          <div className="bg-amber-400/5 border border-amber-400/20 rounded-lg p-3">
-            <p className="text-xs font-medium text-amber-400 mb-2">Threats</p>
+          <div className="bg-accent-amber/5 border border-accent-amber/20 rounded-lg p-3">
+            <p className="text-xs font-medium text-accent-amber mb-2">Threats</p>
             <ul className="space-y-1">
               {findings.swot_analysis.threats.map((t, i) => (
                 <li key={i} className="text-xs text-text-secondary">
@@ -665,7 +665,7 @@ function SectionContent({
                       g.potential === "high"
                         ? "bg-accent-emerald/20 text-accent-emerald"
                         : g.potential === "medium"
-                          ? "bg-amber-400/20 text-amber-400"
+                          ? "bg-accent-amber/20 text-accent-amber"
                           : "bg-text-muted/20 text-text-muted"
                     }`}
                   >
@@ -679,7 +679,7 @@ function SectionContent({
             ))}
           </div>
           <div>
-            <p className="text-xs font-medium text-red-400 mb-2">
+            <p className="text-xs font-medium text-accent-red mb-2">
               Risk Factors
             </p>
             {findings.strategic_assessment.risk_factors.map((r, i) => (
@@ -691,9 +691,9 @@ function SectionContent({
                   <span
                     className={`text-xs px-1.5 py-0.5 rounded ${
                       r.severity === "high"
-                        ? "bg-red-500/20 text-red-400"
+                        ? "bg-accent-red/20 text-accent-red"
                         : r.severity === "medium"
-                          ? "bg-amber-400/20 text-amber-400"
+                          ? "bg-accent-amber/20 text-accent-amber"
                           : "bg-text-muted/20 text-text-muted"
                     }`}
                   >

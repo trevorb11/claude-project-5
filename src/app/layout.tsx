@@ -3,8 +3,8 @@ import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "Competitor Case Files",
-  description: "Deep competitive intelligence, organized.",
+  title: "Builder Studio | Competitive Intelligence",
+  description: "Deep competitive intelligence powered by Builder Studio.",
 };
 
 export default function RootLayout({
