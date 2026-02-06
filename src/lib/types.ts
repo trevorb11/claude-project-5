@@ -108,6 +108,82 @@ export interface IntelligenceReport {
   created_at: string;
 }
 
+export interface CompanyResearch {
+  id: string;
+  findings: string | null;
+  status: "pending" | "in_progress" | "completed" | "error";
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface CompanyResearchFindings {
+  overview: {
+    summary: string;
+    founded: string;
+    headquarters: string;
+    employees: string;
+    funding: string;
+    revenue_estimate: string;
+  };
+  products_and_services: {
+    summary: string;
+    items: Array<{
+      name: string;
+      description: string;
+      market_fit: string;
+    }>;
+  };
+  market_position: {
+    summary: string;
+    strengths: string[];
+    weaknesses: string[];
+    market_share: string;
+  };
+  digital_presence: {
+    website_analysis: string;
+    seo_observations: string;
+    social_media: Array<{
+      platform: string;
+      observations: string;
+    }>;
+    content_strategy: string;
+  };
+  customer_intelligence: {
+    summary: string;
+    target_segments: string[];
+    sentiment: string;
+    key_reviews: string[];
+  };
+  swot_analysis: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+  };
+  recent_activity: {
+    news: Array<{
+      title: string;
+      summary: string;
+      date?: string;
+    }>;
+    hiring_signals: string;
+    partnerships: string;
+  };
+  strategic_assessment: {
+    summary: string;
+    growth_areas: Array<{
+      area: string;
+      potential: "high" | "medium" | "low";
+      rationale: string;
+    }>;
+    risk_factors: Array<{
+      risk: string;
+      severity: "high" | "medium" | "low";
+      mitigation: string;
+    }>;
+  };
+}
+
 export interface IntelligenceHighlights {
   executive_summary: string;
   key_insights: Array<{
