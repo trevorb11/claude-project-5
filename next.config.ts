@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     "https://*.replit.dev",
     "https://*.repl.co",
     "https://*.replit.app",
+    "https://*.kirk.replit.dev",
   ],
 };
 

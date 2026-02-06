@@ -1,6 +1,13 @@
 import { CompanyProfile, CaseFileFindings } from "./types";
+import OpenAI from "openai";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_API_KEY = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || "";
+const OPENAI_BASE_URL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || "https://api.openai.com/v1";
+
+const openai = new OpenAI({
+  apiKey: OPENAI_API_KEY,
+  baseURL: OPENAI_BASE_URL,
+});
 
 interface ResearchContext {
   myCompany: CompanyProfile;
@@ -84,43 +91,26 @@ Return your findings as a JSON object with this exact structure:
 Return ONLY the JSON object, no markdown formatting or code blocks.`;
 
   if (!OPENAI_API_KEY) {
-    // Return simulated deep research findings when no API key is set
     return generateSimulatedFindings(context);
   }
 
   try {
-    // Use OpenAI's API with a capable model for deep research
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 4096,
-      }),
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_completion_tokens: 8192,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("OpenAI API error:", errorText);
-      throw new Error(`API request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = response.choices?.[0]?.message?.content;
 
     if (!content) {
       throw new Error("No content in API response");
     }
 
-    // Parse the JSON response, handling potential markdown code blocks
     let cleanContent = content.trim();
     if (cleanContent.startsWith("```")) {
       cleanContent = cleanContent.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
@@ -130,7 +120,6 @@ Return ONLY the JSON object, no markdown formatting or code blocks.`;
     return findings;
   } catch (error) {
     console.error("Research agent error:", error);
-    // Fallback to simulated data on error
     return generateSimulatedFindings(context);
   }
 }
@@ -186,29 +175,17 @@ Return your response in this EXACT format:
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 4096,
-      }),
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.3,
+      max_completion_tokens: 8192,
     });
 
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const content = response.choices?.[0]?.message?.content || "";
 
     const reportMatch = content.split("---REPORT---")[1]?.split("---HIGHLIGHTS---")[0]?.trim();
     const highlightsMatch = content.split("---HIGHLIGHTS---")[1]?.trim();

@@ -8,7 +8,7 @@ A Next.js 16 application for competitive intelligence research. Users set up the
 - **Language**: TypeScript
 - **Database**: SQLite via better-sqlite3 (stored in `data/` directory)
 - **Styling**: Tailwind CSS v4 with PostCSS
-- **AI**: Optional OpenAI integration for deep research (falls back to simulated data)
+- **AI**: OpenAI via Replit AI Integrations (auto-configured, no API key needed; falls back to simulated data)
 - **Icons**: lucide-react
 
 ## Project Structure
@@ -37,7 +37,8 @@ src/
 ## Configuration
 - **Dev server**: `npm run dev` (port 5000, host 0.0.0.0)
 - **Production**: `npm run build` then `npm run start` (port 5000)
-- **Environment**: `OPENAI_API_KEY` (optional, for AI research features)
+- **Environment**: `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL` (auto-set by Replit AI Integrations)
 
 ## Recent Changes
+- 2026-02-06: Connected OpenAI via Replit AI Integrations for deep research — uses OpenAI SDK instead of raw fetch, billed to Replit credits
 - 2026-02-06: Initial Replit setup - configured port 5000, allowed dev origins for Replit proxy, set up deployment config
