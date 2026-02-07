@@ -131,3 +131,60 @@ h1, h2, h3, h4, h5, h6 {
 .shadow-card {
   box-shadow: var(--shadow-card);
 }
+
+/* Print / PDF Export Styles */
+@media print {
+  /* Hide sidebar and navigation */
+  aside,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Make main content full width */
+  .flex.h-screen {
+    display: block !important;
+  }
+  main {
+    overflow: visible !important;
+  }
+
+  /* Reset backgrounds for printing */
+  body {
+    background: white !important;
+  }
+
+  /* Ensure cards have borders in print */
+  .bg-bg-card {
+    border: 1px solid #e2e8f0 !important;
+    break-inside: avoid;
+  }
+
+  /* Remove animations */
+  .animate-fade-in,
+  .animate-slide-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Remove hover effects */
+  .card-hover {
+    box-shadow: none !important;
+  }
+
+  /* Ensure score bars print */
+  .bg-accent-red,
+  .bg-accent-amber,
+  .bg-accent-emerald,
+  .bg-accent-blue,
+  .bg-accent-cyan,
+  .bg-accent-purple {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Clean page margins */
+  @page {
+    margin: 0.5in;
+  }
+}

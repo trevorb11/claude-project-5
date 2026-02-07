@@ -7,11 +7,13 @@ import {
   Crosshair,
   Building2,
   Shield,
+  BarChart3,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/competitor", label: "Case Files", icon: Crosshair },
+  { href: "/compare", label: "Compare", icon: BarChart3 },
   { href: "/intelligence", label: "Intelligence", icon: Shield },
   { href: "/setup", label: "My Company", icon: Building2 },
 ];
