@@ -3,10 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3"],
   allowedDevOrigins: [
-    "https://*.replit.dev",
-    "https://*.repl.co",
-    "https://*.replit.app",
-    "https://*.kirk.replit.dev",
+    "*.replit.dev",
+    "*.repl.co",
+    "*.replit.app",
+    "*.kirk.replit.dev",
+    "127.0.0.1",
   ],
 };
 
