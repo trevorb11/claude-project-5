@@ -218,3 +218,27 @@ export interface IntelligenceHighlights {
   }>;
   market_trends: string[];
 }
+
+export interface CompetitiveAlert {
+  id: string;
+  competitor_id: string;
+  competitor_name: string;
+  case_file_id: string | null;
+  alert_type:
+    | "score_change"
+    | "new_product"
+    | "pricing_change"
+    | "funding"
+    | "leadership"
+    | "partnership"
+    | "market_move"
+    | "news"
+    | "hiring"
+    | "threat_increase"
+    | "opportunity";
+  severity: "high" | "medium" | "low";
+  title: string;
+  description: string;
+  read: number; // 0 or 1 (SQLite boolean)
+  created_at: string;
+}

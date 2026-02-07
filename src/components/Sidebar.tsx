@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -8,21 +9,40 @@ import {
   Building2,
   Shield,
   BarChart3,
+  Bell,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/competitor", label: "Case Files", icon: Crosshair },
   { href: "/compare", label: "Compare", icon: BarChart3 },
+  { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/intelligence", label: "Intelligence", icon: Shield },
   { href: "/setup", label: "My Company", icon: Building2 },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = () => {
+      fetch("/api/alerts?unread_only=true&limit=100")
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) setUnreadCount(data.length);
+        })
+        .catch(() => {});
+    };
+
+    fetchUnread();
+    // Poll every 30 seconds for new alerts
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <aside className="w-64 bg-bg-secondary border-r border-border flex flex-col shrink-0">
+    <aside className="w-64 bg-bg-secondary border-r border-border flex flex-col shrink-0 print:hidden">
       <div className="p-5 border-b border-border">
         <Link href="/" className="flex items-center gap-3 group">
           <div className="w-9 h-9 rounded-lg bg-accent-blue flex items-center justify-center">
@@ -44,6 +64,7 @@ export function Sidebar() {
           const isActive =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
+          const isAlerts = item.href === "/alerts";
           return (
             <Link
               key={item.href}
@@ -55,7 +76,12 @@ export function Sidebar() {
               }`}
             >
               <item.icon className="w-4 h-4" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {isAlerts && unreadCount > 0 && (
+                <span className="text-[10px] font-bold bg-accent-red text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}

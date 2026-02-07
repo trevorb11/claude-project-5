@@ -77,6 +77,20 @@ function initializeDb(db: Database.Database) {
       competitor_ids TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS alerts (
+      id TEXT PRIMARY KEY,
+      competitor_id TEXT NOT NULL,
+      competitor_name TEXT NOT NULL,
+      case_file_id TEXT,
+      alert_type TEXT NOT NULL,
+      severity TEXT NOT NULL DEFAULT 'medium',
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+    );
   `);
 
   // Ensure a default profile row exists

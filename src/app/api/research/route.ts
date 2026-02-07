@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { CompanyProfile, Competitor, CaseFile, CompanyResearch, CompanyResearchFindings, CaseFileFindings } from "@/lib/types";
 import { runDeepResearch, runResearchUpdate } from "@/lib/research-agent";
+import { detectChanges } from "@/lib/change-detection";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -123,6 +124,34 @@ export async function POST(request: NextRequest) {
         completed_at = datetime('now')
       WHERE id = ?`
     ).run(summary, JSON.stringify(findings), caseFileId);
+
+    // ─── Change Detection: generate alerts for detected changes ───
+    if (previousCaseFile?.findings) {
+      try {
+        const prevFindings = JSON.parse(previousCaseFile.findings) as CaseFileFindings;
+        const changes = detectChanges(competitor.name, prevFindings, findings);
+
+        const insertAlert = db.prepare(
+          `INSERT INTO alerts (id, competitor_id, competitor_name, case_file_id, alert_type, severity, title, description)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+
+        for (const change of changes) {
+          insertAlert.run(
+            uuidv4(),
+            competitor.id,
+            competitor.name,
+            caseFileId,
+            change.alert_type,
+            change.severity,
+            change.title,
+            change.description
+          );
+        }
+      } catch {
+        // Don't fail research if change detection has an issue
+      }
+    }
 
     // Calculate next_research based on schedule
     let nextResearch: string | null = null;
