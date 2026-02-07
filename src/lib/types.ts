@@ -106,6 +106,17 @@ export interface CaseFileFindings {
     innovation_velocity: number;
     overall_threat_level: number;
   };
+  floor_plans?: Array<{
+    model_name: string;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    sq_ft: number | null;
+    stories: number | null;
+    garage_spaces: number | null;
+    base_price: number | null;
+    key_features: string[];
+    url?: string;
+  }>;
   sources?: Array<{
     title: string;
     url: string;
@@ -241,6 +252,28 @@ export interface CompetitiveAlert {
   description: string;
   read: number; // 0 or 1 (SQLite boolean)
   created_at: string;
+}
+
+// ─── Floor Plans / Model Homes ───
+
+export interface FloorPlan {
+  id: string;
+  source: "company" | "competitor"; // company = user's own, competitor = from research
+  competitor_id: string | null; // null for company's own plans
+  competitor_name: string | null;
+  model_name: string;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  sq_ft: number | null;
+  stories: number | null;
+  garage_spaces: number | null;
+  base_price: number | null;
+  price_per_sqft: number | null; // computed: base_price / sq_ft
+  key_features: string | null; // JSON array of feature strings
+  value_score: number | null; // AI-determined 1-10 "best value" score
+  url: string | null; // link to floor plan page
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── GoHighLevel Integration ───

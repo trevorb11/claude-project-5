@@ -99,6 +99,27 @@ function initializeDb(db: Database.Database) {
       FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS floor_plans (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL DEFAULT 'competitor',
+      competitor_id TEXT,
+      competitor_name TEXT,
+      model_name TEXT NOT NULL,
+      bedrooms INTEGER,
+      bathrooms REAL,
+      sq_ft INTEGER,
+      stories INTEGER,
+      garage_spaces INTEGER,
+      base_price REAL,
+      price_per_sqft REAL,
+      key_features TEXT,
+      value_score REAL,
+      url TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS alerts (
       id TEXT PRIMARY KEY,
       competitor_id TEXT NOT NULL,

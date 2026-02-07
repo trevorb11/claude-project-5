@@ -126,6 +126,38 @@ export async function POST(request: NextRequest) {
       WHERE id = ?`
     ).run(summary, JSON.stringify(findings), caseFileId);
 
+    // ─── Floor Plan Extraction: save any floor plans found in research ───
+    if (findings.floor_plans && findings.floor_plans.length > 0) {
+      // Remove old competitor floor plans from research (keep manually added ones)
+      db.prepare(
+        "DELETE FROM floor_plans WHERE competitor_id = ? AND source = 'competitor'"
+      ).run(competitor.id);
+
+      const insertFloorPlan = db.prepare(
+        `INSERT INTO floor_plans (id, source, competitor_id, competitor_name, model_name, bedrooms, bathrooms, sq_ft, stories, garage_spaces, base_price, price_per_sqft, key_features, url)
+         VALUES (?, 'competitor', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+
+      for (const fp of findings.floor_plans) {
+        const pricePerSqft = fp.base_price && fp.sq_ft ? Math.round(fp.base_price / fp.sq_ft) : null;
+        insertFloorPlan.run(
+          uuidv4(),
+          competitor.id,
+          competitor.name,
+          fp.model_name,
+          fp.bedrooms ?? null,
+          fp.bathrooms ?? null,
+          fp.sq_ft ?? null,
+          fp.stories ?? null,
+          fp.garage_spaces ?? null,
+          fp.base_price ?? null,
+          pricePerSqft,
+          fp.key_features ? JSON.stringify(fp.key_features) : null,
+          fp.url ?? null
+        );
+      }
+    }
+
     // ─── Change Detection: generate alerts for detected changes ───
     if (previousCaseFile?.findings) {
       try {

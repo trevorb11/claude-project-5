@@ -11,12 +11,14 @@ import {
   BarChart3,
   Bell,
   Cable,
+  Home,
 } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/competitor", label: "Case Files", icon: Crosshair },
   { href: "/compare", label: "Compare", icon: BarChart3 },
+  { href: "/floorplans", label: "Floor Plans", icon: Home },
   { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/intelligence", label: "Intelligence", icon: Shield },
   { href: "/setup", label: "My Company", icon: Building2 },
