@@ -78,6 +78,27 @@ function initializeDb(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS ghl_config (
+      id TEXT PRIMARY KEY DEFAULT 'main',
+      api_key TEXT NOT NULL DEFAULT '',
+      location_id TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 0,
+      sync_on_research INTEGER NOT NULL DEFAULT 1,
+      sync_on_alert INTEGER NOT NULL DEFAULT 1,
+      last_synced TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ghl_contact_mappings (
+      id TEXT PRIMARY KEY,
+      competitor_id TEXT NOT NULL UNIQUE,
+      ghl_contact_id TEXT NOT NULL,
+      last_synced TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS alerts (
       id TEXT PRIMARY KEY,
       competitor_id TEXT NOT NULL,

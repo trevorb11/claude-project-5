@@ -10,6 +10,7 @@ import {
   Shield,
   BarChart3,
   Bell,
+  Cable,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/intelligence", label: "Intelligence", icon: Shield },
   { href: "/setup", label: "My Company", icon: Building2 },
+  { href: "/integrations", label: "Integrations", icon: Cable },
 ];
 
 export function Sidebar() {
