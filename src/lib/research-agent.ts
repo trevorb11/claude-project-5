@@ -9,10 +9,14 @@ const openai = new OpenAI({
   baseURL: OPENAI_BASE_URL,
 });
 
-// Check if we're using the real OpenAI API (supports Responses API + web search)
-// vs a proxy/local endpoint that only supports Chat Completions
-function isNativeOpenAI(): boolean {
-  return OPENAI_BASE_URL === "https://api.openai.com/v1";
+// Check if we're using an OpenAI-compatible endpoint (supports Responses API + web search)
+// This includes the native OpenAI API and Replit's AI Integrations proxy
+function isOpenAICompatible(): boolean {
+  return (
+    OPENAI_BASE_URL === "https://api.openai.com/v1" ||
+    OPENAI_BASE_URL.includes("replit") ||
+    !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+  );
 }
 
 interface ResearchContext {
@@ -79,44 +83,46 @@ async function callAI(opts: {
 }): Promise<{ text: string; sources: Array<{ title: string; url: string }> }> {
   const maxTokens = opts.maxTokens || 16384;
 
-  if (opts.webSearch && isNativeOpenAI()) {
-    // Use Responses API with web search for live data
-    const response = await (openai as unknown as {
-      responses: {
-        create: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
-      };
-    }).responses.create({
-      model: "gpt-4o",
-      instructions: opts.instructions,
-      input: opts.prompt,
-      tools: [
-        {
-          type: "web_search",
-          search_context_size: "high",
-        },
-      ],
-      temperature: 0.3,
-      max_output_tokens: maxTokens,
-    });
+  if (opts.webSearch && isOpenAICompatible()) {
+    try {
+      const response = await (openai as unknown as {
+        responses: {
+          create: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+        };
+      }).responses.create({
+        model: "gpt-4o",
+        instructions: opts.instructions,
+        input: opts.prompt,
+        tools: [
+          {
+            type: "web_search",
+            search_context_size: "high",
+          },
+        ],
+        temperature: 0.3,
+        max_output_tokens: maxTokens,
+      });
 
-    return extractResponsesOutput(response as Parameters<typeof extractResponsesOutput>[0]);
-  } else {
-    // Fallback to Chat Completions (for non-OpenAI endpoints or non-web-search calls)
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: opts.instructions },
-        { role: "user", content: opts.prompt },
-      ],
-      temperature: 0.3,
-      max_completion_tokens: maxTokens,
-    });
-
-    return {
-      text: response.choices?.[0]?.message?.content || "",
-      sources: [],
-    };
+      return extractResponsesOutput(response as Parameters<typeof extractResponsesOutput>[0]);
+    } catch (responsesError) {
+      console.warn("Responses API unavailable, falling back to Chat Completions:", responsesError instanceof Error ? responsesError.message : responsesError);
+    }
   }
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: opts.instructions },
+      { role: "user", content: opts.prompt },
+    ],
+    temperature: 0.3,
+    max_completion_tokens: maxTokens,
+  });
+
+  return {
+    text: response.choices?.[0]?.message?.content || "",
+    sources: [],
+  };
 }
 
 // ─── Helper: parse JSON from AI response text ───
