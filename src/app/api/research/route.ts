@@ -6,6 +6,31 @@ import { runDeepResearch, runResearchUpdate } from "@/lib/research-agent";
 import { detectChanges } from "@/lib/change-detection";
 import { syncCompetitorToGHL, pushAlertToGHL, isGHLEnabled } from "@/lib/ghl";
 
+const DEFAULT_SCORES = {
+  product_strength: 5,
+  market_position: 5,
+  digital_presence: 5,
+  customer_satisfaction: 5,
+  pricing_competitiveness: 5,
+  innovation_velocity: 5,
+  overall_threat_level: 5,
+};
+
+function ensureScores(caseFiles: CaseFile[]): CaseFile[] {
+  return caseFiles.map((cf) => {
+    if (cf.findings && cf.status === "completed") {
+      try {
+        const findings = JSON.parse(cf.findings) as CaseFileFindings;
+        if (!findings.competitive_scores) {
+          findings.competitive_scores = { ...DEFAULT_SCORES };
+          return { ...cf, findings: JSON.stringify(findings) };
+        }
+      } catch {}
+    }
+    return cf;
+  });
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const competitorId = searchParams.get("competitor_id");
@@ -18,13 +43,13 @@ export async function GET(request: NextRequest) {
         "SELECT * FROM case_files WHERE competitor_id = ? ORDER BY created_at DESC"
       )
       .all(competitorId) as CaseFile[];
-    return NextResponse.json(caseFiles);
+    return NextResponse.json(ensureScores(caseFiles));
   }
 
   const caseFiles = db
     .prepare("SELECT * FROM case_files ORDER BY created_at DESC")
     .all() as CaseFile[];
-  return NextResponse.json(caseFiles);
+  return NextResponse.json(ensureScores(caseFiles));
 }
 
 export async function POST(request: NextRequest) {
