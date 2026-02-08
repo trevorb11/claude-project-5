@@ -16,8 +16,13 @@ import {
   Shield,
   Target,
   BarChart3,
+  Home,
+  Plus,
+  Trash2,
+  Edit3,
+  X,
 } from "lucide-react";
-import { CompanyProfile, CompanyResearch, CompanyResearchFindings } from "@/lib/types";
+import { CompanyProfile, CompanyResearch, CompanyResearchFindings, FloorPlan } from "@/lib/types";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -28,6 +33,18 @@ export default function SetupPage() {
   const [research, setResearch] = useState<CompanyResearch | null>(null);
   const [researching, setResearching] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
+  const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
+  const [showFloorPlanForm, setShowFloorPlanForm] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<FloorPlan | null>(null);
+
+  const fetchFloorPlans = useCallback(() => {
+    fetch("/api/floorplans?source=company")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setFloorPlans(data);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -38,7 +55,8 @@ export default function SetupPage() {
       setResearch(researchData);
       setLoading(false);
     });
-  }, []);
+    fetchFloorPlans();
+  }, [fetchFloorPlans]);
 
   const handleSave = async () => {
     if (!profile) return;
@@ -254,6 +272,128 @@ export default function SetupPage() {
                   Previous research encountered an error. Try running it again.
                 </p>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Floor Plans / Model Homes Section */}
+        {isComplete && (
+          <div className="mt-6 bg-bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-accent-emerald/20 flex items-center justify-center">
+                  <Home className="w-5 h-5 text-accent-emerald" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Your Floor Plans</h2>
+                  <p className="text-sm text-text-secondary">
+                    Add your model homes for competitive comparison
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingPlan(null);
+                  setShowFloorPlanForm(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2.5 bg-accent-emerald hover:bg-accent-emerald/80 rounded-lg text-white text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Floor Plan
+              </button>
+            </div>
+
+            <p className="text-xs text-text-muted mb-4">
+              Enter your company&apos;s floor plans and model homes here. These will be
+              compared side-by-side with competitor models found during research,
+              with honest rankings by price, size, value, and more.
+            </p>
+
+            {showFloorPlanForm && (
+              <FloorPlanForm
+                plan={editingPlan}
+                onSave={async (data) => {
+                  if (editingPlan) {
+                    await fetch("/api/floorplans", {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ ...data, id: editingPlan.id }),
+                    });
+                  } else {
+                    await fetch("/api/floorplans", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ ...data, source: "company" }),
+                    });
+                  }
+                  setShowFloorPlanForm(false);
+                  setEditingPlan(null);
+                  fetchFloorPlans();
+                }}
+                onCancel={() => {
+                  setShowFloorPlanForm(false);
+                  setEditingPlan(null);
+                }}
+              />
+            )}
+
+            {floorPlans.length > 0 ? (
+              <div className="space-y-2">
+                {floorPlans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg border border-border"
+                  >
+                    <Home className="w-4 h-4 text-accent-emerald shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {plan.model_name}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        {[
+                          plan.bedrooms && `${plan.bedrooms} bed`,
+                          plan.bathrooms && `${plan.bathrooms} bath`,
+                          plan.sq_ft && `${plan.sq_ft.toLocaleString()} sqft`,
+                          plan.base_price &&
+                            `$${plan.base_price.toLocaleString()}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setEditingPlan(plan);
+                          setShowFloorPlanForm(true);
+                        }}
+                        className="p-1.5 hover:bg-bg-card rounded text-text-muted hover:text-text-primary transition-colors"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await fetch(
+                            `/api/floorplans?id=${plan.id}`,
+                            { method: "DELETE" }
+                          );
+                          fetchFloorPlans();
+                        }}
+                        className="p-1.5 hover:bg-accent-red/10 rounded text-text-muted hover:text-accent-red transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              !showFloorPlanForm && (
+                <div className="text-center py-6 text-text-muted text-sm">
+                  No floor plans added yet. Click &quot;Add Floor Plan&quot; to get
+                  started.
+                </div>
+              )
             )}
           </div>
         )}
@@ -747,6 +887,218 @@ function SectionContent({
     default:
       return null;
   }
+}
+
+function FloorPlanForm({
+  plan,
+  onSave,
+  onCancel,
+}: {
+  plan: FloorPlan | null;
+  onSave: (data: Record<string, unknown>) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    model_name: plan?.model_name || "",
+    bedrooms: plan?.bedrooms?.toString() || "",
+    bathrooms: plan?.bathrooms?.toString() || "",
+    sq_ft: plan?.sq_ft?.toString() || "",
+    stories: plan?.stories?.toString() || "",
+    garage_spaces: plan?.garage_spaces?.toString() || "",
+    base_price: plan?.base_price?.toString() || "",
+    key_features: plan?.key_features
+      ? JSON.parse(plan.key_features).join(", ")
+      : "",
+    url: plan?.url || "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!formData.model_name) return;
+    setSaving(true);
+    const features = formData.key_features
+      .split(",")
+      .map((f: string) => f.trim())
+      .filter(Boolean);
+
+    await onSave({
+      model_name: formData.model_name,
+      bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
+      bathrooms: formData.bathrooms ? parseFloat(formData.bathrooms) : null,
+      sq_ft: formData.sq_ft ? parseInt(formData.sq_ft) : null,
+      stories: formData.stories ? parseInt(formData.stories) : null,
+      garage_spaces: formData.garage_spaces
+        ? parseInt(formData.garage_spaces)
+        : null,
+      base_price: formData.base_price
+        ? parseFloat(formData.base_price)
+        : null,
+      key_features: features.length > 0 ? features : null,
+      url: formData.url || null,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div className="border border-accent-emerald/30 bg-accent-emerald/5 rounded-lg p-4 mb-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-text-primary">
+          {plan ? "Edit Floor Plan" : "Add Floor Plan"}
+        </h3>
+        <button
+          onClick={onCancel}
+          className="p-1 hover:bg-bg-secondary rounded text-text-muted"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Model Name *
+          </label>
+          <input
+            type="text"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="e.g., The Hamilton"
+            value={formData.model_name}
+            onChange={(e) =>
+              setFormData({ ...formData, model_name: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Bedrooms
+          </label>
+          <input
+            type="number"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="4"
+            value={formData.bedrooms}
+            onChange={(e) =>
+              setFormData({ ...formData, bedrooms: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Bathrooms
+          </label>
+          <input
+            type="number"
+            step="0.5"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="3.5"
+            value={formData.bathrooms}
+            onChange={(e) =>
+              setFormData({ ...formData, bathrooms: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Sq Ft
+          </label>
+          <input
+            type="number"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="2,800"
+            value={formData.sq_ft}
+            onChange={(e) =>
+              setFormData({ ...formData, sq_ft: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Stories
+          </label>
+          <input
+            type="number"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="2"
+            value={formData.stories}
+            onChange={(e) =>
+              setFormData({ ...formData, stories: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Garage Spaces
+          </label>
+          <input
+            type="number"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="2"
+            value={formData.garage_spaces}
+            onChange={(e) =>
+              setFormData({ ...formData, garage_spaces: e.target.value })
+            }
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Base Price ($)
+          </label>
+          <input
+            type="number"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="450000"
+            value={formData.base_price}
+            onChange={(e) =>
+              setFormData({ ...formData, base_price: e.target.value })
+            }
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Key Features (comma-separated)
+          </label>
+          <input
+            type="text"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="open concept, granite counters, smart home, 3-car garage"
+            value={formData.key_features}
+            onChange={(e) =>
+              setFormData({ ...formData, key_features: e.target.value })
+            }
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-xs font-medium text-text-secondary mb-1">
+            Floor Plan URL (optional)
+          </label>
+          <input
+            type="text"
+            className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-emerald/50"
+            placeholder="https://yoursite.com/models/hamilton"
+            value={formData.url}
+            onChange={(e) =>
+              setFormData({ ...formData, url: e.target.value })
+            }
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={handleSubmit}
+          disabled={!formData.model_name || saving}
+          className="flex items-center gap-2 px-4 py-2 bg-accent-emerald hover:bg-accent-emerald/80 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+        >
+          <Save className="w-3.5 h-3.5" />
+          {saving ? "Saving..." : plan ? "Update" : "Add"}
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 text-text-secondary hover:bg-bg-secondary rounded-lg text-sm transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function Field({

@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock,
   Zap,
+  Printer,
 } from "lucide-react";
 import { IntelligenceReport, IntelligenceHighlights } from "@/lib/types";
 
@@ -96,15 +97,25 @@ export default function IntelligencePage() {
             Centralized competitive intelligence synthesized from all case files
           </p>
         </div>
-        <button
-          onClick={generateReport}
-          disabled={generating}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            generating
-              ? "bg-accent-emerald/20 text-accent-emerald"
-              : "bg-accent-emerald hover:bg-accent-emerald/90 text-white"
-          }`}
-        >
+        <div className="flex items-center gap-2 print:hidden">
+          {selectedReport && (
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors border border-border text-text-secondary hover:bg-bg-secondary"
+            >
+              <Printer className="w-4 h-4" />
+              Export PDF
+            </button>
+          )}
+          <button
+            onClick={generateReport}
+            disabled={generating}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              generating
+                ? "bg-accent-emerald/20 text-accent-emerald"
+                : "bg-accent-emerald hover:bg-accent-emerald/90 text-white"
+            }`}
+          >
           {generating ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -116,7 +127,8 @@ export default function IntelligencePage() {
               Generate New Briefing
             </>
           )}
-        </button>
+          </button>
+        </div>
       </div>
 
       {error && (

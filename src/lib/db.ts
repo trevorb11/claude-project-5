@@ -77,6 +77,62 @@ function initializeDb(db: Database.Database) {
       competitor_ids TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS ghl_config (
+      id TEXT PRIMARY KEY DEFAULT 'main',
+      api_key TEXT NOT NULL DEFAULT '',
+      location_id TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 0,
+      sync_on_research INTEGER NOT NULL DEFAULT 1,
+      sync_on_alert INTEGER NOT NULL DEFAULT 1,
+      last_synced TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ghl_contact_mappings (
+      id TEXT PRIMARY KEY,
+      competitor_id TEXT NOT NULL UNIQUE,
+      ghl_contact_id TEXT NOT NULL,
+      last_synced TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS floor_plans (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL DEFAULT 'competitor',
+      competitor_id TEXT,
+      competitor_name TEXT,
+      model_name TEXT NOT NULL,
+      bedrooms INTEGER,
+      bathrooms REAL,
+      sq_ft INTEGER,
+      stories INTEGER,
+      garage_spaces INTEGER,
+      base_price REAL,
+      price_per_sqft REAL,
+      key_features TEXT,
+      value_score REAL,
+      url TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS alerts (
+      id TEXT PRIMARY KEY,
+      competitor_id TEXT NOT NULL,
+      competitor_name TEXT NOT NULL,
+      case_file_id TEXT,
+      alert_type TEXT NOT NULL,
+      severity TEXT NOT NULL DEFAULT 'medium',
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+    );
   `);
 
   // Ensure a default profile row exists

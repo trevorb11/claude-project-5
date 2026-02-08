@@ -25,6 +25,7 @@ import {
   Calendar,
   BarChart3,
   ExternalLink,
+  Printer,
 } from "lucide-react";
 import { Competitor, CaseFile, CaseFileFindings } from "@/lib/types";
 
@@ -154,7 +155,28 @@ export default function CompetitorDetailPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Battle Card Link */}
+            {findings && (
+              <Link
+                href={`/battlecard/${competitorId}`}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-border text-text-secondary hover:bg-bg-secondary"
+              >
+                <Swords className="w-4 h-4" />
+                Battle Card
+              </Link>
+            )}
+
+            {/* Export PDF */}
+            {findings && (
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors border border-border text-text-secondary hover:bg-bg-secondary print:hidden"
+              >
+                <Printer className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Schedule Selector */}
             <div className="flex items-center gap-2 bg-bg-card border border-border rounded-lg px-3 py-2">
               <Clock className="w-4 h-4 text-accent-amber" />
@@ -602,6 +624,9 @@ export default function CompetitorDetailPage() {
             </div>
           </Section>
 
+          {/* Trend Timeline */}
+          <TrendTimeline caseFiles={caseFiles} />
+
           {/* Competitive Scores */}
           {findings.competitive_scores && (
             <Section
@@ -730,5 +755,219 @@ function InfoPill({
       <span className="text-xs text-text-muted">{label}</span>
       <p className="text-sm mt-0.5">{value}</p>
     </div>
+  );
+}
+
+const TREND_DIMENSIONS = [
+  { key: "product_strength", label: "Product", color: "#1e3a8a" },
+  { key: "market_position", label: "Market", color: "#059669" },
+  { key: "digital_presence", label: "Digital", color: "#1e3a8a" },
+  { key: "customer_satisfaction", label: "Customers", color: "#ea580c" },
+  { key: "pricing_competitiveness", label: "Pricing", color: "#0d9488" },
+  { key: "innovation_velocity", label: "Innovation", color: "#1e40af" },
+  { key: "overall_threat_level", label: "Threat", color: "#dc2626" },
+] as const;
+
+interface TrendDataPoint {
+  date: string;
+  label: string;
+  scores: Record<string, number>;
+}
+
+function TrendTimeline({ caseFiles }: { caseFiles: CaseFile[] }) {
+  const [selectedDimensions, setSelectedDimensions] = useState<Set<string>>(
+    new Set(["overall_threat_level", "product_strength", "market_position"])
+  );
+
+  // Extract score data from all completed case files (oldest first)
+  const trendData: TrendDataPoint[] = caseFiles
+    .filter((f) => f.status === "completed" && f.findings)
+    .reverse()
+    .map((f) => {
+      try {
+        const findings = JSON.parse(f.findings!) as CaseFileFindings;
+        if (!findings.competitive_scores) return null;
+        return {
+          date: f.completed_at || f.created_at,
+          label: new Date(f.completed_at || f.created_at).toLocaleDateString(
+            undefined,
+            { month: "short", day: "numeric" }
+          ),
+          scores: findings.competitive_scores as unknown as Record<string, number>,
+        };
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean) as TrendDataPoint[];
+
+  // Need at least 2 data points for a trend
+  if (trendData.length < 2) return null;
+
+  const toggleDimension = (key: string) => {
+    setSelectedDimensions((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        if (next.size > 1) next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const chartHeight = 160;
+  const chartPadding = { top: 10, right: 10, bottom: 25, left: 30 };
+  const innerWidth =
+    trendData.length * 80 - chartPadding.left - chartPadding.right;
+  const chartWidth = Math.max(
+    300,
+    innerWidth + chartPadding.left + chartPadding.right
+  );
+  const innerHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+
+  const xScale = (i: number) =>
+    chartPadding.left +
+    (i / (trendData.length - 1)) *
+      (chartWidth - chartPadding.left - chartPadding.right);
+  const yScale = (v: number) =>
+    chartPadding.top + innerHeight - (v / 10) * innerHeight;
+
+  return (
+    <Section
+      icon={<TrendingUp className="w-4 h-4 text-accent-cyan" />}
+      title="Score Trends"
+      delay="0.48s"
+      defaultOpen
+    >
+      <div className="space-y-3">
+        {/* Dimension selector */}
+        <div className="flex flex-wrap gap-1.5">
+          {TREND_DIMENSIONS.map((dim) => (
+            <button
+              key={dim.key}
+              onClick={() => toggleDimension(dim.key)}
+              className={`text-[11px] px-2 py-1 rounded-lg border transition-all ${
+                selectedDimensions.has(dim.key)
+                  ? "border-current font-medium"
+                  : "border-border text-text-muted hover:text-text-secondary"
+              }`}
+              style={
+                selectedDimensions.has(dim.key) ? { color: dim.color } : {}
+              }
+            >
+              {dim.label}
+            </button>
+          ))}
+        </div>
+
+        {/* SVG Chart */}
+        <div className="overflow-x-auto">
+          <svg
+            width={chartWidth}
+            height={chartHeight}
+            className="w-full"
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          >
+            {/* Y-axis grid lines */}
+            {[0, 2, 4, 6, 8, 10].map((v) => (
+              <g key={v}>
+                <line
+                  x1={chartPadding.left}
+                  y1={yScale(v)}
+                  x2={chartWidth - chartPadding.right}
+                  y2={yScale(v)}
+                  stroke="#e2e8f0"
+                  strokeDasharray={v === 0 ? "0" : "3,3"}
+                />
+                <text
+                  x={chartPadding.left - 8}
+                  y={yScale(v) + 3}
+                  textAnchor="end"
+                  className="fill-[#9ca3af]"
+                  fontSize={10}
+                >
+                  {v}
+                </text>
+              </g>
+            ))}
+
+            {/* X-axis labels */}
+            {trendData.map((point, i) => (
+              <text
+                key={i}
+                x={xScale(i)}
+                y={chartHeight - 4}
+                textAnchor="middle"
+                className="fill-[#9ca3af]"
+                fontSize={10}
+              >
+                {point.label}
+              </text>
+            ))}
+
+            {/* Lines */}
+            {TREND_DIMENSIONS.filter((d) =>
+              selectedDimensions.has(d.key)
+            ).map((dim) => {
+              const points = trendData
+                .map(
+                  (p, i) =>
+                    `${xScale(i)},${yScale(p.scores[dim.key] ?? 0)}`
+                )
+                .join(" ");
+              return (
+                <g key={dim.key}>
+                  <polyline
+                    points={points}
+                    fill="none"
+                    stroke={dim.color}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                  {trendData.map((p, i) => (
+                    <circle
+                      key={i}
+                      cx={xScale(i)}
+                      cy={yScale(p.scores[dim.key] ?? 0)}
+                      r={3}
+                      fill="white"
+                      stroke={dim.color}
+                      strokeWidth={2}
+                    />
+                  ))}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Delta summary for latest vs first */}
+        <div className="flex flex-wrap gap-2 pt-1">
+          {TREND_DIMENSIONS.filter((d) => selectedDimensions.has(d.key)).map(
+            (dim) => {
+              const first = trendData[0].scores[dim.key] ?? 0;
+              const last = trendData[trendData.length - 1].scores[dim.key] ?? 0;
+              const delta = last - first;
+              if (delta === 0) return null;
+              return (
+                <span
+                  key={dim.key}
+                  className={`text-[11px] px-2 py-0.5 rounded-lg ${
+                    delta > 0
+                      ? "bg-accent-red/10 text-accent-red"
+                      : "bg-accent-emerald/10 text-accent-emerald"
+                  }`}
+                >
+                  {dim.label}: {delta > 0 ? "+" : ""}
+                  {delta}
+                </span>
+              );
+            }
+          )}
+        </div>
+      </div>
+    </Section>
   );
 }

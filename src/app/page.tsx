@@ -12,14 +12,16 @@ import {
   ArrowRight,
   Activity,
   Search,
+  Bell,
 } from "lucide-react";
-import { Competitor, CaseFile, CompanyProfile, IntelligenceReport, IntelligenceHighlights } from "@/lib/types";
+import { Competitor, CaseFile, CompanyProfile, IntelligenceReport, IntelligenceHighlights, CompetitiveAlert } from "@/lib/types";
 
 export default function Dashboard() {
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [caseFiles, setCaseFiles] = useState<CaseFile[]>([]);
   const [reports, setReports] = useState<IntelligenceReport[]>([]);
+  const [alerts, setAlerts] = useState<CompetitiveAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,11 +30,13 @@ export default function Dashboard() {
       fetch("/api/competitors").then((r) => r.json()),
       fetch("/api/research").then((r) => r.json()),
       fetch("/api/intelligence").then((r) => r.json()),
-    ]).then(([comp, comps, files, reps]) => {
+      fetch("/api/alerts?limit=5").then((r) => r.json()),
+    ]).then(([comp, comps, files, reps, alts]) => {
       setCompany(comp);
       setCompetitors(comps);
       setCaseFiles(files);
       setReports(reps);
+      setAlerts(Array.isArray(alts) ? alts : []);
       setLoading(false);
     });
   }, []);
@@ -326,6 +330,69 @@ export default function Dashboard() {
                   >
                     <span className="text-sm">{c.name}</span>
                     <StatusBadge status={c.status} />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent Alerts */}
+          <div className="bg-bg-card border border-border rounded-xl p-5 animate-fade-in" style={{ animationDelay: "0.25s" }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-sm flex items-center gap-2">
+                <Bell className="w-4 h-4 text-accent-amber" />
+                Recent Alerts
+                {alerts.filter((a) => !a.read).length > 0 && (
+                  <span className="text-[10px] font-bold bg-accent-red text-white px-1.5 py-0.5 rounded-full">
+                    {alerts.filter((a) => !a.read).length}
+                  </span>
+                )}
+              </h2>
+              <Link
+                href="/alerts"
+                className="text-xs text-accent-blue hover:underline"
+              >
+                View All
+              </Link>
+            </div>
+            {alerts.length === 0 ? (
+              <p className="text-sm text-text-muted">
+                No alerts yet. Research a competitor more than once to detect changes.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {alerts.slice(0, 4).map((alert) => (
+                  <Link
+                    key={alert.id}
+                    href="/alerts"
+                    className={`block p-2.5 rounded-lg border transition-all ${
+                      alert.read
+                        ? "bg-bg-secondary border-border"
+                        : "bg-bg-card border-border-highlight shadow-card"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          alert.severity === "high"
+                            ? "bg-accent-red/10 text-accent-red"
+                            : alert.severity === "medium"
+                            ? "bg-accent-amber/10 text-accent-amber"
+                            : "bg-bg-secondary text-text-muted"
+                        }`}
+                      >
+                        {alert.severity}
+                      </span>
+                      {!alert.read && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-blue" />
+                      )}
+                      <span className="text-[10px] text-text-muted ml-auto">
+                        {new Date(alert.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-text-primary truncate">
+                      {alert.title}
+                    </p>
                   </Link>
                 ))}
               </div>

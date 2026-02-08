@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import { CompanyProfile, Competitor, CaseFile, CompanyResearch, CompanyResearchFindings, CaseFileFindings } from "@/lib/types";
+import { CompanyProfile, Competitor, CaseFile, CompanyResearch, CompanyResearchFindings, CaseFileFindings, CompetitiveAlert } from "@/lib/types";
 import { runDeepResearch, runResearchUpdate } from "@/lib/research-agent";
+import { detectChanges } from "@/lib/change-detection";
+import { syncCompetitorToGHL, pushAlertToGHL, isGHLEnabled } from "@/lib/ghl";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -123,6 +125,90 @@ export async function POST(request: NextRequest) {
         completed_at = datetime('now')
       WHERE id = ?`
     ).run(summary, JSON.stringify(findings), caseFileId);
+
+    // ─── Floor Plan Extraction: save any floor plans found in research ───
+    if (findings.floor_plans && findings.floor_plans.length > 0) {
+      // Remove old competitor floor plans from research (keep manually added ones)
+      db.prepare(
+        "DELETE FROM floor_plans WHERE competitor_id = ? AND source = 'competitor'"
+      ).run(competitor.id);
+
+      const insertFloorPlan = db.prepare(
+        `INSERT INTO floor_plans (id, source, competitor_id, competitor_name, model_name, bedrooms, bathrooms, sq_ft, stories, garage_spaces, base_price, price_per_sqft, key_features, url)
+         VALUES (?, 'competitor', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+
+      for (const fp of findings.floor_plans) {
+        const pricePerSqft = fp.base_price && fp.sq_ft ? Math.round(fp.base_price / fp.sq_ft) : null;
+        insertFloorPlan.run(
+          uuidv4(),
+          competitor.id,
+          competitor.name,
+          fp.model_name,
+          fp.bedrooms ?? null,
+          fp.bathrooms ?? null,
+          fp.sq_ft ?? null,
+          fp.stories ?? null,
+          fp.garage_spaces ?? null,
+          fp.base_price ?? null,
+          pricePerSqft,
+          fp.key_features ? JSON.stringify(fp.key_features) : null,
+          fp.url ?? null
+        );
+      }
+    }
+
+    // ─── Change Detection: generate alerts for detected changes ───
+    if (previousCaseFile?.findings) {
+      try {
+        const prevFindings = JSON.parse(previousCaseFile.findings) as CaseFileFindings;
+        const changes = detectChanges(competitor.name, prevFindings, findings);
+
+        const insertAlert = db.prepare(
+          `INSERT INTO alerts (id, competitor_id, competitor_name, case_file_id, alert_type, severity, title, description)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+
+        const ghlEnabled = isGHLEnabled();
+
+        for (const change of changes) {
+          const alertId = uuidv4();
+          insertAlert.run(
+            alertId,
+            competitor.id,
+            competitor.name,
+            caseFileId,
+            change.alert_type,
+            change.severity,
+            change.title,
+            change.description
+          );
+
+          // Push alert to GHL contact
+          if (ghlEnabled) {
+            pushAlertToGHL({
+              id: alertId,
+              competitor_id: competitor.id,
+              competitor_name: competitor.name,
+              case_file_id: caseFileId,
+              alert_type: change.alert_type as CompetitiveAlert["alert_type"],
+              severity: change.severity,
+              title: change.title,
+              description: change.description,
+              read: 0,
+              created_at: new Date().toISOString(),
+            }).catch(() => {}); // Fire and forget
+          }
+        }
+      } catch {
+        // Don't fail research if change detection has an issue
+      }
+    }
+
+    // ─── GHL Sync: push updated competitor data to GoHighLevel ───
+    if (isGHLEnabled()) {
+      syncCompetitorToGHL(competitor, findings).catch(() => {}); // Fire and forget
+    }
 
     // Calculate next_research based on schedule
     let nextResearch: string | null = null;

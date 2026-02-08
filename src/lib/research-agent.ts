@@ -177,6 +177,7 @@ RESEARCH INSTRUCTIONS:
 - Look for their website, pricing pages, recent news, job postings, social media, customer reviews
 - Find concrete data: funding rounds, employee counts, revenue estimates, product features, pricing tiers
 - Check review sites (G2, Capterra, Trustpilot, etc.) for real customer sentiment
+- IMPORTANT: If this is a homebuilder, real estate developer, or construction company, look for their floor plans / model homes / home designs. Search their website for model names, square footage, bedrooms, bathrooms, stories, garage size, base price, and key features. This data is critical for floor plan comparison analysis.
 - Be specific and factual. Cite what you actually find. If information isn't available, say so honestly.`;
 
   const userPrompt = `Create a comprehensive competitive intelligence case file for: ${context.competitorName}
@@ -240,8 +241,23 @@ Return your findings as a JSON object with this exact structure:
     "pricing_competitiveness": 7,
     "innovation_velocity": 6,
     "overall_threat_level": 7
-  }
+  },
+  "floor_plans": [
+    {
+      "model_name": "Model/floor plan name",
+      "bedrooms": 4,
+      "bathrooms": 3,
+      "sq_ft": 2500,
+      "stories": 2,
+      "garage_spaces": 2,
+      "base_price": 450000,
+      "key_features": ["open concept", "granite counters", "smart home"],
+      "url": "https://example.com/model-page"
+    }
+  ]
 }
+
+NOTE ON FLOOR PLANS: If the competitor is a homebuilder, real estate developer, or construction company, you MUST search for and include their floor plans / model homes with as much data as possible (model name, beds, baths, sqft, stories, garage, price, features, URL). If they are not in the homebuilding industry or you cannot find any floor plans, set floor_plans to an empty array [].
 
 SCORING GUIDE (1-10): 1-3 = Weak/low threat, 4-6 = Moderate/average, 7-8 = Strong/significant, 9-10 = Exceptional/critical threat.
 Score based on real evidence. overall_threat_level reflects how much of a competitive threat they pose to ${context.myCompany.name} specifically.
