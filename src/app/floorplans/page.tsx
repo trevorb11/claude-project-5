@@ -23,6 +23,9 @@ import {
   Trash2,
   Search,
   ChevronDown,
+  Globe,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 import { FloorPlan, Competitor } from "@/lib/types";
 
@@ -77,6 +80,28 @@ export default function FloorPlansPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [competitorSearch, setCompetitorSearch] = useState("");
   const [showCompetitorDropdown, setShowCompetitorDropdown] = useState(false);
+
+  const [showScanForm, setShowScanForm] = useState(false);
+  const [scanUrl, setScanUrl] = useState("");
+  const [scanBuilderName, setScanBuilderName] = useState("");
+  const [scanSource, setScanSource] = useState<"company" | "competitor">("competitor");
+  const [scanCompetitorId, setScanCompetitorId] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanResults, setScanResults] = useState<Array<{
+    model_name: string;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    sq_ft: number | null;
+    stories: number | null;
+    garage_spaces: number | null;
+    base_price: number | null;
+    key_features: string[];
+    url: string | null;
+    selected: boolean;
+  }> | null>(null);
+  const [scanSources, setScanSources] = useState<Array<{ title: string; url: string }>>([]);
+  const [scanError, setScanError] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -157,6 +182,90 @@ export default function FloorPlansPage() {
     setDeletingId(null);
   };
 
+  const handleScan = async () => {
+    if (!scanUrl.trim() || !scanBuilderName.trim()) return;
+    setScanning(true);
+    setScanError("");
+    setScanResults(null);
+    setScanSources([]);
+    try {
+      const res = await fetch("/api/floorplans/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: scanUrl.trim(),
+          builder_name: scanBuilderName.trim(),
+          source: scanSource,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setScanError(data.error || "Scan failed");
+        return;
+      }
+      if (data.message && (!data.plans || data.plans.length === 0)) {
+        setScanError(data.message);
+        if (data.sources) setScanSources(data.sources);
+        return;
+      }
+      setScanResults(
+        (data.plans || []).map((p: Record<string, unknown>) => ({
+          ...p,
+          key_features: Array.isArray(p.key_features) ? p.key_features : [],
+          selected: true,
+        }))
+      );
+      setScanSources(data.sources || []);
+    } catch {
+      setScanError("Failed to connect. Please try again.");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleImportScanned = async () => {
+    if (!scanResults) return;
+    const selected = scanResults.filter((p) => p.selected);
+    if (selected.length === 0) return;
+    setImporting(true);
+    try {
+      const res = await fetch("/api/floorplans/scan", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plans: selected.map(({ selected: _sel, ...rest }) => rest),
+          source: scanSource,
+          builder_name: scanBuilderName.trim(),
+          competitor_id: scanSource === "competitor" ? scanCompetitorId || null : null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.imported) {
+          setPlans((prev) => [...(data.imported as FloorPlan[]), ...prev]);
+        }
+        setScanResults(null);
+        setScanSources([]);
+        setScanUrl("");
+        setScanBuilderName("");
+        setShowScanForm(false);
+      }
+    } catch {}
+    setImporting(false);
+  };
+
+  const resetScan = () => {
+    setShowScanForm(false);
+    setScanUrl("");
+    setScanBuilderName("");
+    setScanSource("competitor");
+    setScanCompetitorId("");
+    setScanning(false);
+    setScanResults(null);
+    setScanSources([]);
+    setScanError("");
+  };
+
   const selectCompetitor = (comp: Competitor) => {
     setForm((prev) => ({
       ...prev,
@@ -213,11 +322,12 @@ export default function FloorPlansPage() {
             No floor plans found yet. Add your company&apos;s floor plans or
             competitor plans to start comparing.
           </p>
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
             <button
               onClick={() => {
                 setForm({ ...EMPTY_FORM, source: "company" });
                 setShowAddForm(true);
+                setShowScanForm(false);
               }}
               className="px-4 py-2.5 bg-accent-emerald hover:bg-accent-emerald/80 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
             >
@@ -228,14 +338,48 @@ export default function FloorPlansPage() {
               onClick={() => {
                 setForm({ ...EMPTY_FORM, source: "competitor" });
                 setShowAddForm(true);
+                setShowScanForm(false);
               }}
               className="px-4 py-2.5 bg-bg-card border border-border hover:bg-bg-secondary rounded-lg text-text-primary text-sm font-medium transition-colors flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
               Add Competitor Plans
             </button>
+            <button
+              onClick={() => {
+                setShowScanForm(true);
+                setShowAddForm(false);
+              }}
+              className="px-4 py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              <Globe className="w-4 h-4" />
+              Scan Website
+            </button>
           </div>
         </div>
+
+        {showScanForm && (
+          <ScanWebsitePanel
+            scanUrl={scanUrl}
+            setScanUrl={setScanUrl}
+            scanBuilderName={scanBuilderName}
+            setScanBuilderName={setScanBuilderName}
+            scanSource={scanSource}
+            setScanSource={setScanSource}
+            scanCompetitorId={scanCompetitorId}
+            setScanCompetitorId={setScanCompetitorId}
+            competitors={competitors}
+            scanning={scanning}
+            scanResults={scanResults}
+            setScanResults={setScanResults}
+            scanSources={scanSources}
+            scanError={scanError}
+            importing={importing}
+            onScan={handleScan}
+            onImport={handleImportScanned}
+            onClose={resetScan}
+          />
+        )}
 
         {showAddForm && (
           <AddFloorPlanForm
@@ -284,6 +428,7 @@ export default function FloorPlansPage() {
                 setForm({ ...EMPTY_FORM });
                 setCompetitorSearch("");
                 setShowAddForm(!showAddForm);
+                if (!showAddForm) resetScan();
               }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 showAddForm
@@ -300,6 +445,30 @@ export default function FloorPlansPage() {
                 <>
                   <Plus className="w-4 h-4" />
                   Add Plan
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setShowScanForm(!showScanForm);
+                if (!showScanForm) setShowAddForm(false);
+                if (showScanForm) resetScan();
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                showScanForm
+                  ? "bg-bg-secondary border border-border text-text-secondary hover:bg-bg-card"
+                  : "bg-accent-blue hover:bg-accent-blue/80 text-white"
+              }`}
+            >
+              {showScanForm ? (
+                <>
+                  <X className="w-4 h-4" />
+                  Cancel Scan
+                </>
+              ) : (
+                <>
+                  <Globe className="w-4 h-4" />
+                  Scan Website
                 </>
               )}
             </button>
@@ -343,6 +512,30 @@ export default function FloorPlansPage() {
             saving={saving}
             onSave={handleAddPlan}
             onClose={() => { setShowAddForm(false); setForm({ ...EMPTY_FORM }); setCompetitorSearch(""); }}
+          />
+        )}
+
+        {/* Scan Website Form */}
+        {showScanForm && (
+          <ScanWebsitePanel
+            scanUrl={scanUrl}
+            setScanUrl={setScanUrl}
+            scanBuilderName={scanBuilderName}
+            setScanBuilderName={setScanBuilderName}
+            scanSource={scanSource}
+            setScanSource={setScanSource}
+            scanCompetitorId={scanCompetitorId}
+            setScanCompetitorId={setScanCompetitorId}
+            competitors={competitors}
+            scanning={scanning}
+            scanResults={scanResults}
+            setScanResults={setScanResults}
+            scanSources={scanSources}
+            scanError={scanError}
+            importing={importing}
+            onScan={handleScan}
+            onImport={handleImportScanned}
+            onClose={resetScan}
           />
         )}
 
@@ -690,6 +883,376 @@ export default function FloorPlansPage() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function ScanWebsitePanel({
+  scanUrl,
+  setScanUrl,
+  scanBuilderName,
+  setScanBuilderName,
+  scanSource,
+  setScanSource,
+  scanCompetitorId,
+  setScanCompetitorId,
+  competitors,
+  scanning,
+  scanResults,
+  setScanResults,
+  scanSources,
+  scanError,
+  importing,
+  onScan,
+  onImport,
+  onClose,
+}: {
+  scanUrl: string;
+  setScanUrl: (v: string) => void;
+  scanBuilderName: string;
+  setScanBuilderName: (v: string) => void;
+  scanSource: "company" | "competitor";
+  setScanSource: (v: "company" | "competitor") => void;
+  scanCompetitorId: string;
+  setScanCompetitorId: (v: string) => void;
+  competitors: Competitor[];
+  scanning: boolean;
+  scanResults: Array<{
+    model_name: string;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    sq_ft: number | null;
+    stories: number | null;
+    garage_spaces: number | null;
+    base_price: number | null;
+    key_features: string[];
+    url: string | null;
+    selected: boolean;
+  }> | null;
+  setScanResults: Dispatch<SetStateAction<typeof scanResults>>;
+  scanSources: Array<{ title: string; url: string }>;
+  scanError: string;
+  importing: boolean;
+  onScan: () => void;
+  onImport: () => void;
+  onClose: () => void;
+}) {
+  const selectedCount = scanResults?.filter((p) => p.selected).length ?? 0;
+
+  return (
+    <div className="bg-bg-card border border-accent-blue/30 rounded-xl p-5 mb-6 animate-fade-in">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <Globe className="w-4 h-4 text-accent-blue" />
+          Scan Website for Floor Plans
+        </h3>
+        <button
+          onClick={onClose}
+          className="text-text-muted hover:text-text-primary transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <p className="text-xs text-text-secondary mb-4">
+        Enter a builder&apos;s website URL and the AI will search for all available floor plans, model homes, and specs. You can then review and pick which ones to import.
+      </p>
+
+      {/* Source Toggle */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-xs text-text-muted">These plans belong to:</span>
+        <button
+          onClick={() => setScanSource("company")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            scanSource === "company"
+              ? "bg-accent-blue/15 text-accent-blue border border-accent-blue/30"
+              : "bg-bg-secondary border border-border text-text-secondary hover:bg-bg-card"
+          }`}
+        >
+          <span className="flex items-center gap-1">
+            <Building2 className="w-3 h-3" />
+            Your Company
+          </span>
+        </button>
+        <button
+          onClick={() => setScanSource("competitor")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            scanSource === "competitor"
+              ? "bg-accent-orange/15 text-accent-orange border border-accent-orange/30"
+              : "bg-bg-secondary border border-border text-text-secondary hover:bg-bg-card"
+          }`}
+        >
+          <span className="flex items-center gap-1">
+            <Home className="w-3 h-3" />
+            Competitor
+          </span>
+        </button>
+      </div>
+
+      {/* Competitor selector for competitor source */}
+      {scanSource === "competitor" && competitors.length > 0 && (
+        <div className="mb-4">
+          <label className="block text-xs text-text-muted mb-1">Link to existing competitor (optional)</label>
+          <select
+            value={scanCompetitorId}
+            onChange={(e) => {
+              setScanCompetitorId(e.target.value);
+              const comp = competitors.find((c) => c.id === e.target.value);
+              if (comp) {
+                setScanBuilderName(comp.name);
+                if (comp.website) setScanUrl(comp.website);
+              }
+            }}
+            className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-accent-blue/50"
+          >
+            <option value="">— None (custom name) —</option>
+            {competitors.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.website ? `(${c.website.replace(/^https?:\/\//, "")})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* URL and builder name inputs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="md:col-span-2">
+          <label className="block text-xs text-text-muted mb-1">
+            Website URL <span className="text-accent-red">*</span>
+          </label>
+          <input
+            type="url"
+            value={scanUrl}
+            onChange={(e) => setScanUrl(e.target.value)}
+            placeholder="https://www.builderwebsite.com/floor-plans"
+            className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-blue/50"
+          />
+          <p className="text-[10px] text-text-muted mt-1">Tip: Use the builder&apos;s floor plans page URL for best results</p>
+        </div>
+        <div>
+          <label className="block text-xs text-text-muted mb-1">
+            Builder Name <span className="text-accent-red">*</span>
+          </label>
+          <input
+            type="text"
+            value={scanBuilderName}
+            onChange={(e) => setScanBuilderName(e.target.value)}
+            placeholder="e.g. Perry Homes"
+            className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-blue/50"
+          />
+        </div>
+      </div>
+
+      {/* Scan Button */}
+      {!scanResults && (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onScan}
+            disabled={scanning || !scanUrl.trim() || !scanBuilderName.trim()}
+            className="flex items-center gap-2 px-5 py-2.5 bg-accent-blue hover:bg-accent-blue/80 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+          >
+            {scanning ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Scanning website...
+              </>
+            ) : (
+              <>
+                <Globe className="w-4 h-4" />
+                Scan for Floor Plans
+              </>
+            )}
+          </button>
+          {scanning && (
+            <span className="text-xs text-text-muted">
+              This may take 15-30 seconds while the AI searches the website...
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Error message */}
+      {scanError && (
+        <div className="mt-4 p-3 bg-accent-red/10 border border-accent-red/20 rounded-lg flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-accent-red shrink-0 mt-0.5" />
+          <p className="text-sm text-accent-red">{scanError}</p>
+        </div>
+      )}
+
+      {/* Scan Results */}
+      {scanResults && scanResults.length > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-semibold flex items-center gap-2">
+              <Check className="w-4 h-4 text-accent-emerald" />
+              Found {scanResults.length} floor plan{scanResults.length !== 1 ? "s" : ""}
+            </h4>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() =>
+                  setScanResults((prev) =>
+                    prev ? prev.map((p) => ({ ...p, selected: true })) : prev
+                  )
+                }
+                className="text-xs text-accent-blue hover:underline"
+              >
+                Select All
+              </button>
+              <span className="text-text-muted text-xs">|</span>
+              <button
+                onClick={() =>
+                  setScanResults((prev) =>
+                    prev ? prev.map((p) => ({ ...p, selected: false })) : prev
+                  )
+                }
+                className="text-xs text-text-secondary hover:underline"
+              >
+                Deselect All
+              </button>
+            </div>
+          </div>
+
+          <div className="border border-border rounded-lg overflow-hidden mb-4">
+            <div className="max-h-[400px] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-bg-secondary sticky top-0">
+                  <tr className="text-left text-xs text-text-muted">
+                    <th className="px-3 py-2 w-8"></th>
+                    <th className="px-3 py-2">Model</th>
+                    <th className="px-3 py-2 text-right">Price</th>
+                    <th className="px-3 py-2 text-right">Sq Ft</th>
+                    <th className="px-3 py-2 text-center">Bed</th>
+                    <th className="px-3 py-2 text-center">Bath</th>
+                    <th className="px-3 py-2 text-center">Stories</th>
+                    <th className="px-3 py-2 text-center">Garage</th>
+                    <th className="px-3 py-2">Features</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scanResults.map((plan, idx) => (
+                    <tr
+                      key={idx}
+                      className={`border-t border-border transition-colors ${
+                        plan.selected ? "bg-accent-blue/5" : "opacity-50"
+                      }`}
+                    >
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={plan.selected}
+                          onChange={() =>
+                            setScanResults((prev) =>
+                              prev
+                                ? prev.map((p, i) =>
+                                    i === idx ? { ...p, selected: !p.selected } : p
+                                  )
+                                : prev
+                            )
+                          }
+                          className="rounded border-border"
+                        />
+                      </td>
+                      <td className="px-3 py-2 font-medium">
+                        <div className="flex items-center gap-1">
+                          {plan.model_name}
+                          {plan.url && (
+                            <a
+                              href={plan.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent-blue hover:text-accent-blue/80"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {plan.base_price ? `$${plan.base_price.toLocaleString()}` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {plan.sq_ft ? plan.sq_ft.toLocaleString() : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center">{plan.bedrooms ?? "—"}</td>
+                      <td className="px-3 py-2 text-center">{plan.bathrooms ?? "—"}</td>
+                      <td className="px-3 py-2 text-center">{plan.stories ?? "—"}</td>
+                      <td className="px-3 py-2 text-center">{plan.garage_spaces ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {plan.key_features.slice(0, 3).map((f, fi) => (
+                            <span
+                              key={fi}
+                              className="text-[10px] px-1.5 py-0.5 bg-bg-secondary rounded text-text-muted"
+                            >
+                              {f}
+                            </span>
+                          ))}
+                          {plan.key_features.length > 3 && (
+                            <span className="text-[10px] text-text-muted">
+                              +{plan.key_features.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Sources */}
+          {scanSources.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-text-muted mb-1">Sources found:</p>
+              <div className="flex flex-wrap gap-2">
+                {scanSources.slice(0, 5).map((s, i) => (
+                  <a
+                    key={i}
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] px-2 py-1 bg-bg-secondary rounded-lg text-accent-blue hover:bg-accent-blue/10 transition-colors flex items-center gap-1 max-w-[200px] truncate"
+                  >
+                    <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                    {s.title}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Import button */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onImport}
+              disabled={importing || selectedCount === 0}
+              className="flex items-center gap-2 px-5 py-2.5 bg-accent-emerald hover:bg-accent-emerald/80 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  Import {selectedCount} Plan{selectedCount !== 1 ? "s" : ""}
+                </>
+              )}
+            </button>
+            <button
+              onClick={onScan}
+              disabled={scanning}
+              className="flex items-center gap-2 px-4 py-2.5 bg-bg-secondary border border-border hover:bg-bg-card rounded-lg text-text-secondary text-sm font-medium transition-colors"
+            >
+              <Globe className="w-4 h-4" />
+              Re-scan
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -91,6 +91,7 @@ src/
 - Navy/orange/teal color palette
 
 ## Recent Changes
+- 2026-02-09: Added AI Website Scanner for floor plans — scans builder websites to extract floor plan specs (model names, prices, sq ft, bedrooms, etc.) with web search, shows results in preview table with select/deselect, then imports chosen plans. API at /api/floorplans/scan (POST to scan, PUT to import).
 - 2026-02-08: Fixed legacy competitive_scores — added ensureScores() helper with 5/10 defaults for pre-existing case files
 - 2026-02-08: Verified new features from GitHub PR: Compare, Battle Cards, Alerts, Floor Plans, GHL Integration, PDF Export
 - 2026-02-07: Fixed web search integration — `isOpenAICompatible()` now correctly detects Replit proxy, added try-catch fallback from Responses API to Chat Completions
