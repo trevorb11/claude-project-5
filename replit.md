@@ -39,6 +39,7 @@ src/
       cron/route.ts       - Scheduled research scanner endpoint (protected by CRON_SECRET)
       floorplans/
         route.ts          - Floor plan CRUD (add your own + view competitor plans)
+        csv/route.ts      - CSV bulk upload for floor plans (preview + import)
         score/route.ts    - Floor plan competitive scoring
       integrations/
         ghl/route.ts      - GoHighLevel integration config & sync
@@ -94,6 +95,7 @@ src/
 - Navy/orange/teal color palette
 
 ## Recent Changes
+- 2026-02-09: Added CSV upload for floor plans — bulk import from CSV file for company or competitor plans, flexible column matching (aliases for common headers), preview before import, downloadable template, auto-calculates $/sqft
 - 2026-02-09: AI integration hardening — upgraded all AI calls from gpt-4o to gpt-5.2, added retry logic with exponential backoff (2 retries before failure), errors now surface instead of silently returning fake data, added /api/cron endpoint for scheduled competitor scans with background scheduler (every 5 min via instrumentation.ts), CRON_SECRET env var for endpoint protection
 - 2026-02-09: Company self-assessment integration — own company case file shown prominently on Case Files page with blue gradient card and "Your Company" badge; Compare page auto-selects company first and shows "You" badges; regular competitors filtered from company card display
 - 2026-02-09: Rebranded to match Homebuilder Studio visual identity — integrated official logo, updated color palette (navy #1a365d, orange #e8702a, teal #5ba8a0), gradient accent bar on sidebar, orange CTA buttons, teal scan buttons, updated page title

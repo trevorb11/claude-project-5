@@ -26,6 +26,9 @@ import {
   Globe,
   Check,
   AlertCircle,
+  Upload,
+  FileText,
+  Download,
 } from "lucide-react";
 import { FloorPlan, Competitor } from "@/lib/types";
 
@@ -102,6 +105,29 @@ export default function FloorPlansPage() {
   const [scanSources, setScanSources] = useState<Array<{ title: string; url: string }>>([]);
   const [scanError, setScanError] = useState("");
   const [importing, setImporting] = useState(false);
+
+  const [showCsvUpload, setShowCsvUpload] = useState(false);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvSource, setCsvSource] = useState<"company" | "competitor">("company");
+  const [csvCompetitorId, setCsvCompetitorId] = useState("");
+  const [csvCompetitorName, setCsvCompetitorName] = useState("");
+  const [csvPreviewing, setCsvPreviewing] = useState(false);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvPreview, setCsvPreview] = useState<Array<{
+    model_name: string;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    sq_ft: number | null;
+    stories: number | null;
+    garage_spaces: number | null;
+    base_price: number | null;
+    price_per_sqft: number | null;
+    key_features: string[];
+    url: string | null;
+  }> | null>(null);
+  const [csvMatchedCols, setCsvMatchedCols] = useState<string[]>([]);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [csvError, setCsvError] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -266,6 +292,91 @@ export default function FloorPlansPage() {
     setScanError("");
   };
 
+  const resetCsvUpload = () => {
+    setShowCsvUpload(false);
+    setCsvFile(null);
+    setCsvSource("company");
+    setCsvCompetitorId("");
+    setCsvCompetitorName("");
+    setCsvPreviewing(false);
+    setCsvImporting(false);
+    setCsvPreview(null);
+    setCsvMatchedCols([]);
+    setCsvErrors([]);
+    setCsvError("");
+  };
+
+  const handleCsvPreview = async () => {
+    if (!csvFile) return;
+    setCsvPreviewing(true);
+    setCsvError("");
+    setCsvPreview(null);
+    setCsvErrors([]);
+    setCsvMatchedCols([]);
+    try {
+      const fd = new FormData();
+      fd.append("file", csvFile);
+      fd.append("mode", "preview");
+      const res = await fetch("/api/floorplans/csv", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setCsvError(data.error || "Failed to parse CSV");
+        return;
+      }
+      setCsvPreview(data.plans || []);
+      setCsvMatchedCols(data.matched_columns || []);
+      setCsvErrors(data.errors || []);
+    } catch {
+      setCsvError("Failed to parse CSV file");
+    } finally {
+      setCsvPreviewing(false);
+    }
+  };
+
+  const handleCsvImport = async () => {
+    if (!csvFile || !csvPreview || csvPreview.length === 0) return;
+    setCsvImporting(true);
+    setCsvError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", csvFile);
+      fd.append("mode", "import");
+      fd.append("source", csvSource);
+      if (csvSource === "competitor") {
+        if (csvCompetitorId) fd.append("competitor_id", csvCompetitorId);
+        if (csvCompetitorName) fd.append("competitor_name", csvCompetitorName);
+      }
+      const res = await fetch("/api/floorplans/csv", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setCsvError(data.error || "Import failed");
+        return;
+      }
+      if (Array.isArray(data.plans)) {
+        setPlans((prev) => [...(data.plans as FloorPlan[]), ...prev]);
+      }
+      resetCsvUpload();
+    } catch {
+      setCsvError("Import failed");
+    } finally {
+      setCsvImporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const header = "model_name,bedrooms,bathrooms,sq_ft,stories,garage_spaces,base_price,key_features,url";
+    const sample1 = 'The Oakwood,4,3,2850,2,3,425000,"Open floor plan;Quartz counters;Walk-in pantry",https://example.com/oakwood';
+    const sample2 = 'The Maple,3,2.5,2200,2,2,375000,"Energy efficient;Smart home ready",';
+    const csv = [header, sample1, sample2].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "floor_plans_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const selectCompetitor = (comp: Competitor) => {
     setForm((prev) => ({
       ...prev,
@@ -349,14 +460,50 @@ export default function FloorPlansPage() {
               onClick={() => {
                 setShowScanForm(true);
                 setShowAddForm(false);
+                resetCsvUpload();
               }}
               className="px-4 py-2.5 bg-accent-cyan hover:bg-accent-cyan/80 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
             >
               <Globe className="w-4 h-4" />
               Scan Website
             </button>
+            <button
+              onClick={() => {
+                setShowCsvUpload(true);
+                setShowAddForm(false);
+                resetScan();
+              }}
+              className="px-4 py-2.5 bg-bg-card border border-border hover:bg-bg-secondary rounded-lg text-text-primary text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Upload CSV
+            </button>
           </div>
         </div>
+
+        {showCsvUpload && (
+          <CsvUploadPanel
+            csvFile={csvFile}
+            setCsvFile={setCsvFile}
+            csvSource={csvSource}
+            setCsvSource={setCsvSource}
+            csvCompetitorId={csvCompetitorId}
+            setCsvCompetitorId={setCsvCompetitorId}
+            csvCompetitorName={csvCompetitorName}
+            setCsvCompetitorName={setCsvCompetitorName}
+            competitors={competitors}
+            csvPreviewing={csvPreviewing}
+            csvImporting={csvImporting}
+            csvPreview={csvPreview}
+            csvMatchedCols={csvMatchedCols}
+            csvErrors={csvErrors}
+            csvError={csvError}
+            onPreview={handleCsvPreview}
+            onImport={handleCsvImport}
+            onDownloadTemplate={handleDownloadTemplate}
+            onClose={resetCsvUpload}
+          />
+        )}
 
         {showScanForm && (
           <ScanWebsitePanel
@@ -451,7 +598,7 @@ export default function FloorPlansPage() {
             <button
               onClick={() => {
                 setShowScanForm(!showScanForm);
-                if (!showScanForm) setShowAddForm(false);
+                if (!showScanForm) { setShowAddForm(false); resetCsvUpload(); }
                 if (showScanForm) resetScan();
               }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
@@ -469,6 +616,34 @@ export default function FloorPlansPage() {
                 <>
                   <Globe className="w-4 h-4" />
                   Scan Website
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => {
+                if (showCsvUpload) {
+                  resetCsvUpload();
+                } else {
+                  setShowCsvUpload(true);
+                  setShowAddForm(false);
+                  resetScan();
+                }
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                showCsvUpload
+                  ? "bg-bg-secondary border border-border text-text-secondary hover:bg-bg-card"
+                  : "bg-bg-card border border-border text-text-primary hover:bg-bg-secondary"
+              }`}
+            >
+              {showCsvUpload ? (
+                <>
+                  <X className="w-4 h-4" />
+                  Cancel CSV
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Upload CSV
                 </>
               )}
             </button>
@@ -497,6 +672,31 @@ export default function FloorPlansPage() {
             </button>
           </div>
         </div>
+
+        {/* CSV Upload Panel */}
+        {showCsvUpload && (
+          <CsvUploadPanel
+            csvFile={csvFile}
+            setCsvFile={setCsvFile}
+            csvSource={csvSource}
+            setCsvSource={setCsvSource}
+            csvCompetitorId={csvCompetitorId}
+            setCsvCompetitorId={setCsvCompetitorId}
+            csvCompetitorName={csvCompetitorName}
+            setCsvCompetitorName={setCsvCompetitorName}
+            competitors={competitors}
+            csvPreviewing={csvPreviewing}
+            csvImporting={csvImporting}
+            csvPreview={csvPreview}
+            csvMatchedCols={csvMatchedCols}
+            csvErrors={csvErrors}
+            csvError={csvError}
+            onPreview={handleCsvPreview}
+            onImport={handleCsvImport}
+            onDownloadTemplate={handleDownloadTemplate}
+            onClose={resetCsvUpload}
+          />
+        )}
 
         {/* Add Plan Form */}
         {showAddForm && (
@@ -883,6 +1083,310 @@ export default function FloorPlansPage() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function CsvUploadPanel({
+  csvFile,
+  setCsvFile,
+  csvSource,
+  setCsvSource,
+  csvCompetitorId,
+  setCsvCompetitorId,
+  csvCompetitorName,
+  setCsvCompetitorName,
+  competitors,
+  csvPreviewing,
+  csvImporting,
+  csvPreview,
+  csvMatchedCols,
+  csvErrors,
+  csvError,
+  onPreview,
+  onImport,
+  onDownloadTemplate,
+  onClose,
+}: {
+  csvFile: File | null;
+  setCsvFile: Dispatch<SetStateAction<File | null>>;
+  csvSource: "company" | "competitor";
+  setCsvSource: Dispatch<SetStateAction<"company" | "competitor">>;
+  csvCompetitorId: string;
+  setCsvCompetitorId: Dispatch<SetStateAction<string>>;
+  csvCompetitorName: string;
+  setCsvCompetitorName: Dispatch<SetStateAction<string>>;
+  competitors: Competitor[];
+  csvPreviewing: boolean;
+  csvImporting: boolean;
+  csvPreview: Array<{
+    model_name: string;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    sq_ft: number | null;
+    stories: number | null;
+    garage_spaces: number | null;
+    base_price: number | null;
+    price_per_sqft: number | null;
+    key_features: string[];
+    url: string | null;
+  }> | null;
+  csvMatchedCols: string[];
+  csvErrors: string[];
+  csvError: string;
+  onPreview: () => void;
+  onImport: () => void;
+  onDownloadTemplate: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="mb-6 bg-bg-card rounded-xl border border-border p-5 animate-fade-in">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Upload className="w-5 h-5 text-accent-blue" />
+          <h3 className="font-semibold text-sm">Upload Floor Plans from CSV</h3>
+        </div>
+        <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1.5">
+            These plans belong to:
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCsvSource("company")}
+              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                csvSource === "company"
+                  ? "bg-accent-blue/15 text-accent-blue border border-accent-blue/30"
+                  : "bg-bg-secondary border border-border text-text-secondary hover:bg-bg-card"
+              }`}
+            >
+              Our Company
+            </button>
+            <button
+              onClick={() => setCsvSource("competitor")}
+              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                csvSource === "competitor"
+                  ? "bg-accent-orange/15 text-accent-orange border border-accent-orange/30"
+                  : "bg-bg-secondary border border-border text-text-secondary hover:bg-bg-card"
+              }`}
+            >
+              A Competitor
+            </button>
+          </div>
+        </div>
+
+        {csvSource === "competitor" && (
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+              Competitor
+            </label>
+            {competitors.length > 0 ? (
+              <select
+                value={csvCompetitorId}
+                onChange={(e) => {
+                  setCsvCompetitorId(e.target.value);
+                  const comp = competitors.find((c) => c.id === e.target.value);
+                  setCsvCompetitorName(comp?.name || "");
+                }}
+                className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm"
+              >
+                <option value="">Select competitor...</option>
+                {competitors.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={csvCompetitorName}
+                onChange={(e) => setCsvCompetitorName(e.target.value)}
+                placeholder="Competitor name"
+                className="w-full px-3 py-2 bg-bg-secondary border border-border rounded-lg text-sm"
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="mb-4">
+        <div className="flex items-center gap-3 mb-2">
+          <label className="block text-xs font-medium text-text-secondary">CSV File</label>
+          <button
+            onClick={onDownloadTemplate}
+            className="text-xs text-accent-blue hover:underline flex items-center gap-1"
+          >
+            <Download className="w-3 h-3" />
+            Download template
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex-1 flex items-center gap-3 px-4 py-3 bg-bg-secondary border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-accent-blue/40 transition-colors">
+            <FileText className="w-5 h-5 text-text-muted" />
+            <span className="text-sm text-text-secondary">
+              {csvFile ? csvFile.name : "Choose a .csv file..."}
+            </span>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null;
+                setCsvFile(f);
+              }}
+            />
+          </label>
+          <button
+            onClick={onPreview}
+            disabled={!csvFile || csvPreviewing}
+            className="px-4 py-2.5 bg-accent-blue hover:bg-accent-blue/80 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            {csvPreviewing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Parsing...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4" />
+                Preview
+              </>
+            )}
+          </button>
+        </div>
+        <p className="text-[11px] text-text-muted mt-1.5">
+          Columns: model_name (required), bedrooms, bathrooms, sq_ft, stories, garage_spaces, base_price, key_features (semicolon-separated), url
+        </p>
+      </div>
+
+      {csvError && (
+        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>{csvError}</span>
+        </div>
+      )}
+
+      {csvErrors.length > 0 && (
+        <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+          <p className="font-medium mb-1">Warnings:</p>
+          {csvErrors.map((e, i) => (
+            <p key={i} className="text-xs">{e}</p>
+          ))}
+        </div>
+      )}
+
+      {csvMatchedCols.length > 0 && (
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-text-muted">Matched columns:</span>
+          {csvMatchedCols.map((col) => (
+            <span
+              key={col}
+              className="px-2 py-0.5 bg-accent-emerald/10 text-accent-emerald text-xs rounded-full border border-accent-emerald/20"
+            >
+              {col.replace(/_/g, " ")}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {csvPreview && csvPreview.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium">
+              Preview ({csvPreview.length} plan{csvPreview.length !== 1 ? "s" : ""} found)
+            </h4>
+            <button
+              onClick={onImport}
+              disabled={csvImporting || (csvSource === "competitor" && !csvCompetitorId && !csvCompetitorName)}
+              className="px-4 py-2 bg-accent-emerald hover:bg-accent-emerald/80 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              {csvImporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  Import {csvPreview.length} Plans
+                </>
+              )}
+            </button>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-bg-secondary/50 border-b border-border">
+                  <th className="text-left px-3 py-2 text-xs font-medium text-text-muted">#</th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-text-muted">Model</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-muted">Price</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-muted">Sq Ft</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-muted">$/SqFt</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-muted">Bed</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-muted">Bath</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-muted">Stories</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-muted">Garage</th>
+                  <th className="text-left px-3 py-2 text-xs font-medium text-text-muted">Features</th>
+                </tr>
+              </thead>
+              <tbody>
+                {csvPreview.map((plan, idx) => (
+                  <tr key={idx} className="border-b border-border last:border-b-0 hover:bg-bg-secondary/30">
+                    <td className="px-3 py-2 text-text-muted text-xs">{idx + 1}</td>
+                    <td className="px-3 py-2 font-medium">{plan.model_name}</td>
+                    <td className="px-3 py-2 text-right">
+                      {plan.base_price ? `$${plan.base_price.toLocaleString()}` : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {plan.sq_ft ? plan.sq_ft.toLocaleString() : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {plan.price_per_sqft ? `$${plan.price_per_sqft}` : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right">{plan.bedrooms ?? "—"}</td>
+                    <td className="px-3 py-2 text-right">{plan.bathrooms ?? "—"}</td>
+                    <td className="px-3 py-2 text-right">{plan.stories ?? "—"}</td>
+                    <td className="px-3 py-2 text-right">{plan.garage_spaces ?? "—"}</td>
+                    <td className="px-3 py-2">
+                      {plan.key_features.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {plan.key_features.slice(0, 3).map((f, fi) => (
+                            <span
+                              key={fi}
+                              className="px-1.5 py-0.5 bg-bg-secondary rounded text-[10px] text-text-secondary"
+                            >
+                              {f}
+                            </span>
+                          ))}
+                          {plan.key_features.length > 3 && (
+                            <span className="text-[10px] text-text-muted">
+                              +{plan.key_features.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-text-muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {csvPreview && csvPreview.length === 0 && (
+        <div className="text-center py-6 text-text-muted text-sm">
+          No valid floor plans found in the CSV file.
+        </div>
+      )}
     </div>
   );
 }
