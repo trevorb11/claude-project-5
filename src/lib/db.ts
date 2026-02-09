@@ -14,7 +14,7 @@ export function getDb(): Database.Database {
     }
     db = new Database(DB_PATH);
     db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = ON");
+    db.pragma("foreign_keys = OFF");
     initializeDb(db);
   }
   return db;
@@ -58,8 +58,7 @@ function initializeDb(db: Database.Database) {
       findings TEXT,
       raw_data TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      completed_at TEXT,
-      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+      completed_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS company_research (
@@ -96,8 +95,7 @@ function initializeDb(db: Database.Database) {
       competitor_id TEXT NOT NULL UNIQUE,
       ghl_contact_id TEXT NOT NULL,
       last_synced TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS floor_plans (
@@ -130,8 +128,7 @@ function initializeDb(db: Database.Database) {
       title TEXT NOT NULL,
       description TEXT NOT NULL,
       read INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 
@@ -148,34 +145,22 @@ function initializeDb(db: Database.Database) {
     db.exec("ALTER TABLE competitors ADD COLUMN is_own_company INTEGER NOT NULL DEFAULT 0");
   }
 
-  // Migration: remove foreign key constraint from floor_plans table
-  const fpFkCheck = db.prepare(
-    "SELECT sql FROM sqlite_master WHERE type='table' AND name='floor_plans'"
-  ).get() as { sql: string } | undefined;
-  if (fpFkCheck && fpFkCheck.sql && fpFkCheck.sql.includes("FOREIGN KEY")) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS floor_plans_new (
-        id TEXT PRIMARY KEY,
-        source TEXT NOT NULL DEFAULT 'competitor',
-        competitor_id TEXT,
-        competitor_name TEXT,
-        model_name TEXT NOT NULL,
-        bedrooms INTEGER,
-        bathrooms REAL,
-        sq_ft INTEGER,
-        stories INTEGER,
-        garage_spaces INTEGER,
-        base_price REAL,
-        price_per_sqft REAL,
-        key_features TEXT,
-        value_score REAL,
-        url TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-      INSERT INTO floor_plans_new SELECT * FROM floor_plans;
-      DROP TABLE floor_plans;
-      ALTER TABLE floor_plans_new RENAME TO floor_plans;
-    `);
+  // Migration: remove foreign key constraints from tables
+  const tables = ["floor_plans", "case_files", "ghl_contact_mappings", "alerts"];
+  for (const tbl of tables) {
+    const row = db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name=?"
+    ).get(tbl) as { sql: string } | undefined;
+    if (row && row.sql && row.sql.includes("FOREIGN KEY")) {
+      const newSql = row.sql
+        .replace(/,\s*FOREIGN KEY\s*\([^)]+\)\s*REFERENCES\s*[^)]+\)\s*(ON\s+DELETE\s+CASCADE)?/gi, "")
+        .replace(new RegExp(`^CREATE TABLE ${tbl}`, "i"), `CREATE TABLE ${tbl}_migrated`);
+      db.exec(`
+        ${newSql};
+        INSERT INTO ${tbl}_migrated SELECT * FROM ${tbl};
+        DROP TABLE ${tbl};
+        ALTER TABLE ${tbl}_migrated RENAME TO ${tbl};
+      `);
+    }
   }
 }
