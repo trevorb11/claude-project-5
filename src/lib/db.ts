@@ -43,6 +43,7 @@ function initializeDb(db: Database.Database) {
       last_researched TEXT,
       next_research TEXT,
       status TEXT DEFAULT 'idle',
+      is_own_company INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -139,5 +140,12 @@ function initializeDb(db: Database.Database) {
   const existing = db.prepare("SELECT id FROM company_profile WHERE id = 'main'").get();
   if (!existing) {
     db.prepare("INSERT INTO company_profile (id) VALUES ('main')").run();
+  }
+
+  // Migration: add is_own_company column if missing
+  try {
+    db.prepare("SELECT is_own_company FROM competitors LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE competitors ADD COLUMN is_own_company INTEGER NOT NULL DEFAULT 0");
   }
 }

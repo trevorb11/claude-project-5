@@ -91,6 +91,7 @@ src/
 - Navy/orange/teal color palette
 
 ## Recent Changes
+- 2026-02-09: Company self-assessment integration — own company case file shown prominently on Case Files page with blue gradient card and "Your Company" badge; Compare page auto-selects company first and shows "You" badges; regular competitors filtered from company card display
 - 2026-02-09: Rebranded to match Homebuilder Studio visual identity — integrated official logo, updated color palette (navy #1a365d, orange #e8702a, teal #5ba8a0), gradient accent bar on sidebar, orange CTA buttons, teal scan buttons, updated page title
 - 2026-02-09: Added AI Website Scanner for floor plans — scans builder websites to extract floor plan specs (model names, prices, sq ft, bedrooms, etc.) with web search, shows results in preview table with select/deselect, then imports chosen plans. API at /api/floorplans/scan (POST to scan, PUT to import).
 - 2026-02-08: Fixed legacy competitive_scores — added ensureScores() helper with 5/10 defaults for pre-existing case files

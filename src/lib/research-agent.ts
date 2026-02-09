@@ -513,6 +513,75 @@ Return ONLY the JSON object, no markdown formatting or code blocks.`;
   }
 }
 
+// ─── Convert Company Research to Case File Format ───
+
+export function convertCompanyToCaseFileFindings(
+  companyFindings: CompanyResearchFindings,
+  companyName: string
+): CaseFileFindings {
+  return {
+    overview: {
+      summary: companyFindings.overview.summary,
+      founded: companyFindings.overview.founded,
+      headquarters: companyFindings.overview.headquarters,
+      employees: companyFindings.overview.employees,
+      funding: companyFindings.overview.funding,
+      revenue_estimate: companyFindings.overview.revenue_estimate,
+    },
+    products_and_services: {
+      summary: companyFindings.products_and_services.summary,
+      items: companyFindings.products_and_services.items.map((item) => ({
+        name: item.name,
+        description: item.description,
+        pricing: item.market_fit,
+      })),
+    },
+    market_position: {
+      summary: companyFindings.market_position.summary,
+      strengths: companyFindings.market_position.strengths,
+      weaknesses: companyFindings.market_position.weaknesses,
+      market_share: companyFindings.market_position.market_share,
+    },
+    digital_presence: {
+      website_analysis: companyFindings.digital_presence.website_analysis,
+      seo_observations: companyFindings.digital_presence.seo_observations,
+      social_media: companyFindings.digital_presence.social_media,
+      content_strategy: companyFindings.digital_presence.content_strategy,
+    },
+    customer_intelligence: {
+      summary: companyFindings.customer_intelligence.summary,
+      target_segments: companyFindings.customer_intelligence.target_segments,
+      sentiment: companyFindings.customer_intelligence.sentiment,
+      key_reviews: companyFindings.customer_intelligence.key_reviews,
+    },
+    competitive_analysis: {
+      direct_threats: companyFindings.swot_analysis.threats,
+      opportunities_for_you: companyFindings.swot_analysis.opportunities,
+      key_differentiators: companyFindings.swot_analysis.strengths.slice(0, 3),
+      pricing_comparison: `${companyName}'s pricing position based on self-assessment.`,
+    },
+    recent_activity: companyFindings.recent_activity,
+    strategic_recommendations: {
+      summary: companyFindings.strategic_assessment.summary,
+      action_items: companyFindings.strategic_assessment.growth_areas.map((g) => ({
+        priority: g.potential as "high" | "medium" | "low",
+        action: g.area,
+        rationale: g.rationale,
+      })),
+    },
+    competitive_scores: {
+      product_strength: 7,
+      market_position: 6,
+      digital_presence: 6,
+      customer_satisfaction: 7,
+      pricing_competitiveness: 6,
+      innovation_velocity: 6,
+      overall_threat_level: 0,
+    },
+    sources: companyFindings.sources,
+  };
+}
+
 // ─── Intelligence Report Generation ───
 
 export async function generateIntelligenceReport(

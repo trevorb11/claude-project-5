@@ -12,6 +12,8 @@ import {
   Play,
   Loader2,
   X,
+  Building2,
+  Star,
 } from "lucide-react";
 import { Competitor, CaseFile } from "@/lib/types";
 
@@ -26,6 +28,12 @@ export default function CompetitorsPage() {
   const [newSchedule, setNewSchedule] = useState("manual");
   const [adding, setAdding] = useState(false);
   const [researchingId, setResearchingId] = useState<string | null>(null);
+
+  const ownCompany = competitors.find((c) => c.is_own_company === 1);
+  const regularCompetitors = competitors.filter((c) => c.is_own_company !== 1);
+  const ownCompanyCaseFile = ownCompany
+    ? caseFiles.find((f) => f.competitor_id === ownCompany.id && f.status === "completed")
+    : null;
 
   const fetchData = () => {
     Promise.all([
@@ -209,8 +217,78 @@ export default function CompetitorsPage() {
         </div>
       )}
 
+      {/* Your Company Card */}
+      {ownCompany && ownCompanyCaseFile && (
+        <div className="mb-6 animate-fade-in">
+          <div className="bg-gradient-to-r from-accent-blue/5 to-accent-cyan/5 border-2 border-accent-blue/30 rounded-xl p-5">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-accent-blue/20 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-accent-blue" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/competitor/${ownCompany.id}`}
+                      className="text-lg font-semibold hover:text-accent-blue transition-colors"
+                    >
+                      {ownCompany.name}
+                    </Link>
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-accent-blue/20 text-accent-blue tracking-wider">
+                      Your Company
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Self-assessment case file &middot; Last updated:{" "}
+                    {ownCompany.last_researched
+                      ? new Date(ownCompany.last_researched).toLocaleDateString()
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={`/competitor/${ownCompany.id}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-accent-blue/20 text-accent-blue rounded-lg text-xs font-medium hover:bg-accent-blue/30 transition-colors"
+              >
+                <Search className="w-3 h-3" />
+                View Case File
+              </Link>
+            </div>
+            {ownCompanyCaseFile.summary && (
+              <p className="text-xs text-text-secondary mt-3 line-clamp-2 pl-[52px]">
+                {ownCompanyCaseFile.summary}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!ownCompany && (
+        <div className="mb-6 animate-fade-in">
+          <div className="bg-bg-card border border-dashed border-accent-blue/30 rounded-xl p-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-accent-blue/50" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-text-primary">
+                  Run deep research on your own company
+                </p>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Go to{" "}
+                  <Link href="/setup" className="text-accent-blue hover:underline">
+                    My Company
+                  </Link>{" "}
+                  and launch deep research to create your own case file. This lets you compare your company side-by-side with competitors.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Competitors Grid */}
-      {competitors.length === 0 ? (
+      {regularCompetitors.length === 0 ? (
         <div className="text-center py-16 animate-fade-in">
           <Crosshair className="w-12 h-12 text-text-muted mx-auto mb-4" />
           <h2 className="text-lg font-semibold mb-2">No competitors yet</h2>
@@ -227,7 +305,7 @@ export default function CompetitorsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4">
-          {competitors.map((comp, i) => {
+          {regularCompetitors.map((comp, i) => {
             const files = getFilesForCompetitor(comp.id);
             const completedFiles = files.filter((f) => f.status === "completed");
             const isResearching =

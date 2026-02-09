@@ -19,6 +19,7 @@ export interface Competitor {
   last_researched: string | null;
   next_research: string | null;
   status: "idle" | "researching" | "completed" | "error";
+  is_own_company: number;
   created_at: string;
   updated_at: string;
 }

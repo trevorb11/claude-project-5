@@ -12,6 +12,7 @@ import {
   Package,
   Users,
   Swords,
+  Building2,
 } from "lucide-react";
 import { Competitor, CaseFile, CaseFileFindings } from "@/lib/types";
 
@@ -46,16 +47,18 @@ export default function ComparePage() {
       setCaseFiles(files);
       setLoading(false);
 
-      // Auto-select first 2 competitors with completed case files
+      // Auto-select: prefer own company first, then competitors
       const completedIds = new Set(
         files
           .filter((f: CaseFile) => f.status === "completed" && f.findings)
           .map((f: CaseFile) => f.competitor_id)
       );
-      const autoSelect = comps
-        .filter((c: Competitor) => completedIds.has(c.id))
-        .slice(0, 2)
-        .map((c: Competitor) => c.id);
+      const ownComp = comps.find((c: Competitor) => c.is_own_company === 1 && completedIds.has(c.id));
+      const others = comps.filter((c: Competitor) => !c.is_own_company && completedIds.has(c.id));
+      const autoSelect = [
+        ...(ownComp ? [ownComp.id] : []),
+        ...others.slice(0, ownComp ? 1 : 2).map((c: Competitor) => c.id),
+      ];
       setSelected(autoSelect);
     });
   }, []);
@@ -134,12 +137,13 @@ export default function ComparePage() {
       {/* Selector */}
       <div className="bg-bg-card border border-border rounded-xl p-4 mb-6 animate-fade-in print:hidden">
         <p className="text-xs uppercase tracking-wide text-text-muted mb-3">
-          Select competitors to compare ({selected.length}/4)
+          Select companies to compare ({selected.length}/4)
         </p>
         <div className="flex flex-wrap gap-2">
           {competitors.map((comp) => {
             const isSelected = selected.includes(comp.id);
             const hasData = hasCompletedFiles(comp.id);
+            const isOwn = comp.is_own_company === 1;
             return (
               <button
                 key={comp.id}
@@ -147,14 +151,22 @@ export default function ComparePage() {
                 disabled={!hasData}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all ${
                   isSelected
-                    ? "bg-accent-blue/10 border-accent-blue/40 text-accent-blue font-medium"
+                    ? isOwn
+                      ? "bg-accent-blue/15 border-accent-blue/50 text-accent-blue font-medium"
+                      : "bg-accent-blue/10 border-accent-blue/40 text-accent-blue font-medium"
                     : hasData
                     ? "bg-bg-secondary border-border text-text-secondary hover:border-border-highlight"
                     : "bg-bg-secondary border-border text-text-muted opacity-50 cursor-not-allowed"
                 }`}
               >
                 {isSelected && <Check className="w-3.5 h-3.5" />}
+                {isOwn && <Building2 className="w-3.5 h-3.5" />}
                 {comp.name}
+                {isOwn && (
+                  <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-accent-blue/20 text-accent-blue tracking-wider">
+                    You
+                  </span>
+                )}
                 {!hasData && (
                   <span className="text-[10px] text-text-muted">(no data)</span>
                 )}
@@ -195,16 +207,24 @@ export default function ComparePage() {
             {/* Column headers */}
             <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: `180px repeat(${competitorData.length}, 1fr)` }}>
               <div />
-              {competitorData.map((d) => (
-                <div key={d.competitor.id} className="text-center">
-                  <Link
-                    href={`/competitor/${d.competitor.id}`}
-                    className="text-sm font-semibold hover:text-accent-blue transition-colors"
-                  >
-                    {d.competitor.name}
-                  </Link>
-                </div>
-              ))}
+              {competitorData.map((d) => {
+                const isOwn = d.competitor.is_own_company === 1;
+                return (
+                  <div key={d.competitor.id} className="text-center">
+                    <Link
+                      href={`/competitor/${d.competitor.id}`}
+                      className="text-sm font-semibold hover:text-accent-blue transition-colors"
+                    >
+                      {d.competitor.name}
+                    </Link>
+                    {isOwn && (
+                      <span className="ml-1.5 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-accent-blue/20 text-accent-blue tracking-wider">
+                        You
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Score rows */}
@@ -260,10 +280,13 @@ export default function ComparePage() {
               Strengths & Weaknesses
             </h2>
             <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${competitorData.length}, 1fr)` }}>
-              {competitorData.map((d) => (
+              {competitorData.map((d) => {
+                const isOwn = d.competitor.is_own_company === 1;
+                return (
                 <div key={d.competitor.id} className="space-y-3">
                   <h3 className="text-sm font-semibold text-center border-b border-border pb-2">
                     {d.competitor.name}
+                    {isOwn && <span className="ml-1.5 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-accent-blue/20 text-accent-blue tracking-wider">You</span>}
                   </h3>
                   <div>
                     <p className="text-xs font-medium text-accent-emerald mb-1.5">Strengths</p>
@@ -284,7 +307,8 @@ export default function ComparePage() {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
