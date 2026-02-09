@@ -73,7 +73,16 @@ function extractResponsesOutput(response: {
   return { text, sources };
 }
 
-// ─── Helper: call AI with optional web search ───
+// ─── Helper: sleep for retry backoff ───
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ─── Helper: call AI with optional web search + retry logic ───
+
+const MAX_RETRIES = 2;
+const BASE_DELAY_MS = 2000;
 
 async function callAI(opts: {
   instructions: string;
@@ -82,47 +91,65 @@ async function callAI(opts: {
   maxTokens?: number;
 }): Promise<{ text: string; sources: Array<{ title: string; url: string }> }> {
   const maxTokens = opts.maxTokens || 16384;
+  let lastError: Error | null = null;
 
-  if (opts.webSearch && isOpenAICompatible()) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      console.log(`AI call retry ${attempt}/${MAX_RETRIES} after ${delay}ms...`);
+      await sleep(delay);
+    }
+
     try {
-      const response = await (openai as unknown as {
-        responses: {
-          create: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
-        };
-      }).responses.create({
-        model: "gpt-4o",
-        instructions: opts.instructions,
-        input: opts.prompt,
-        tools: [
-          {
-            type: "web_search",
-            search_context_size: "high",
-          },
+      if (opts.webSearch && isOpenAICompatible()) {
+        try {
+          const response = await (openai as unknown as {
+            responses: {
+              create: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+            };
+          }).responses.create({
+            model: "gpt-5.2",
+            instructions: opts.instructions,
+            input: opts.prompt,
+            tools: [
+              {
+                type: "web_search",
+                search_context_size: "high",
+              },
+            ],
+            temperature: 0.3,
+            max_output_tokens: maxTokens,
+          });
+
+          return extractResponsesOutput(response as Parameters<typeof extractResponsesOutput>[0]);
+        } catch (responsesError) {
+          console.warn("Responses API unavailable, falling back to Chat Completions:", responsesError instanceof Error ? responsesError.message : responsesError);
+        }
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        messages: [
+          { role: "system", content: opts.instructions },
+          { role: "user", content: opts.prompt },
         ],
         temperature: 0.3,
-        max_output_tokens: maxTokens,
+        max_completion_tokens: maxTokens,
       });
 
-      return extractResponsesOutput(response as Parameters<typeof extractResponsesOutput>[0]);
-    } catch (responsesError) {
-      console.warn("Responses API unavailable, falling back to Chat Completions:", responsesError instanceof Error ? responsesError.message : responsesError);
+      const text = response.choices?.[0]?.message?.content || "";
+      if (!text) throw new Error("Empty response from AI");
+
+      return { text, sources: [] };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`AI call attempt ${attempt + 1} failed:`, lastError.message);
+
+      if (attempt === MAX_RETRIES) break;
     }
   }
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      { role: "system", content: opts.instructions },
-      { role: "user", content: opts.prompt },
-    ],
-    temperature: 0.3,
-    max_completion_tokens: maxTokens,
-  });
-
-  return {
-    text: response.choices?.[0]?.message?.content || "",
-    sources: [],
-  };
+  throw new Error(`AI research failed after ${MAX_RETRIES + 1} attempts: ${lastError?.message || "Unknown error"}`);
 }
 
 // ─── Helper: parse JSON from AI response text ───
@@ -288,7 +315,10 @@ Return ONLY the JSON object, no markdown formatting or code blocks.`;
     return findings;
   } catch (error) {
     console.error("Research agent error:", error);
-    return generateSimulatedFindings(context);
+    if (!OPENAI_API_KEY) {
+      return generateSimulatedFindings(context);
+    }
+    throw error;
   }
 }
 
@@ -409,7 +439,10 @@ Return ONLY the JSON object, no markdown formatting or code blocks.`;
     return findings;
   } catch (error) {
     console.error("Research update error:", error);
-    return generateSimulatedFindings(context);
+    if (!OPENAI_API_KEY) {
+      return generateSimulatedFindings(context);
+    }
+    throw error;
   }
 }
 
@@ -509,7 +542,10 @@ Return ONLY the JSON object, no markdown formatting or code blocks.`;
     return findings;
   } catch (error) {
     console.error("Company deep research error:", error);
-    return generateSimulatedCompanyFindings(company);
+    if (!OPENAI_API_KEY) {
+      return generateSimulatedCompanyFindings(company);
+    }
+    throw error;
   }
 }
 
@@ -674,7 +710,10 @@ Return your response in this EXACT format:
     };
   } catch (error) {
     console.error("Intelligence report error:", error);
-    return generateSimulatedReport(myCompany, allFindings);
+    if (!OPENAI_API_KEY) {
+      return generateSimulatedReport(myCompany, allFindings);
+    }
+    throw error;
   }
 }
 

@@ -8,7 +8,7 @@ A Next.js 16 application for competitive intelligence research. Users set up the
 - **Language**: TypeScript
 - **Database**: SQLite via better-sqlite3 (stored in `data/` directory)
 - **Styling**: Tailwind CSS v4 with PostCSS
-- **AI**: OpenAI via Replit AI Integrations (auto-configured, billed to Replit credits; falls back to simulated data)
+- **AI**: OpenAI gpt-5.2 via Replit AI Integrations (auto-configured, billed to Replit credits; Responses API + web_search; retry logic with exponential backoff; falls back to simulated data only when no API key)
 - **Icons**: lucide-react
 - **Theme**: Homebuilder Studio light theme (navy/orange/teal palette, logo at /public/images/logo.png)
 - **CRM Integration**: GoHighLevel (GHL) via built-in API client + MCP server
@@ -36,6 +36,7 @@ src/
       research/route.ts   - Research/case files (deep research + update scans + change detection)
       intelligence/route.ts - Intelligence reports
       alerts/route.ts     - Competitive alerts CRUD (read, mark as read, dismiss)
+      cron/route.ts       - Scheduled research scanner endpoint (protected by CRON_SECRET)
       floorplans/
         route.ts          - Floor plan CRUD (add your own + view competitor plans)
         score/route.ts    - Floor plan competitive scoring
@@ -45,7 +46,8 @@ src/
     Sidebar.tsx           - Navigation sidebar
   lib/
     db.ts                 - SQLite database setup & initialization (tables: company_profile, company_research, competitors, case_files, intelligence_reports, floor_plans, alerts, ghl_config, ghl_field_mappings)
-    research-agent.ts     - OpenAI-powered research agent with web search
+    research-agent.ts     - OpenAI-powered research agent with web search (gpt-5.2 + retry logic)
+    scheduler.ts          - Background scheduler for automated competitor scans
     change-detection.ts   - Change detection engine (compares old vs new findings to generate alerts)
     ghl.ts                - GoHighLevel API client (sync competitors, push alerts)
     types.ts              - TypeScript type definitions
@@ -83,6 +85,7 @@ src/
 - **Dev server**: `npm run dev` (port 5000, host 0.0.0.0)
 - **Production**: `npm run build` then `npm run start` (port 5000)
 - **Environment**: `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL` (auto-set by Replit AI Integrations)
+- **Scheduler**: `CRON_SECRET` env var protects the /api/cron endpoint; background scheduler auto-starts via `src/instrumentation.ts` (runs every 5 minutes)
 - **GHL Integration**: Configured via /integrations page (API key + Location ID stored in SQLite ghl_config table)
 - **GHL MCP Server**: Also available for direct GHL API access (coexists with built-in client)
 
@@ -91,6 +94,7 @@ src/
 - Navy/orange/teal color palette
 
 ## Recent Changes
+- 2026-02-09: AI integration hardening — upgraded all AI calls from gpt-4o to gpt-5.2, added retry logic with exponential backoff (2 retries before failure), errors now surface instead of silently returning fake data, added /api/cron endpoint for scheduled competitor scans with background scheduler (every 5 min via instrumentation.ts), CRON_SECRET env var for endpoint protection
 - 2026-02-09: Company self-assessment integration — own company case file shown prominently on Case Files page with blue gradient card and "Your Company" badge; Compare page auto-selects company first and shows "You" badges; regular competitors filtered from company card display
 - 2026-02-09: Rebranded to match Homebuilder Studio visual identity — integrated official logo, updated color palette (navy #1a365d, orange #e8702a, teal #5ba8a0), gradient accent bar on sidebar, orange CTA buttons, teal scan buttons, updated page title
 - 2026-02-09: Added AI Website Scanner for floor plans — scans builder websites to extract floor plan specs (model names, prices, sq ft, bedrooms, etc.) with web search, shows results in preview table with select/deselect, then imports chosen plans. API at /api/floorplans/scan (POST to scan, PUT to import).

@@ -91,7 +91,7 @@ async function callAI(opts: {
           create: (params: Record<string, unknown>) => Promise<Record<string, unknown>>;
         };
       }).responses.create({
-        model: "gpt-4o",
+        model: "gpt-5.2",
         instructions: opts.instructions,
         input: opts.prompt,
         tools: [
@@ -111,7 +111,7 @@ async function callAI(opts: {
   }
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.2",
     messages: [
       { role: "system", content: opts.instructions },
       { role: "user", content: opts.prompt },
