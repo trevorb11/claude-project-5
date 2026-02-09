@@ -35,6 +35,7 @@ interface ScanResult {
   plans: ScannedFloorPlan[];
   sources: Array<{ title: string; url: string }>;
   builder_name: string;
+  full_report: string;
 }
 
 function extractResponsesOutput(response: {
@@ -186,29 +187,40 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const instructions = `You are an expert home builder researcher. Your job is to scan a builder's website and extract all floor plan / model home information you can find.
+    const instructions = `You are an expert home builder researcher. Your job is to scan a builder's website and produce TWO things:
 
-You must search the web for the builder's floor plans, model homes, and available home designs. Look for:
+1. A comprehensive NARRATIVE REPORT about their floor plan offerings
+2. A structured JSON data extract of every floor plan found
+
+For the NARRATIVE REPORT, include:
+- Overview of the builder's product lines, collections, and communities
+- Pricing strategy and price range analysis
+- Target market segments (first-time buyers, move-up, luxury, etc.)
+- Notable design trends or unique features across their portfolio
+- How their floor plans compare to typical market offerings
+- Any promotions, incentives, or limited-time offers found
+- Community/location information if available
+- Any additional context about their building process, customization options, or included features
+
+For the STRUCTURED DATA, extract every floor plan/model you can find with:
 - Model names and plan names
-- Square footage
-- Number of bedrooms and bathrooms
-- Number of stories
+- Square footage, bedrooms, bathrooms, stories
 - Garage capacity (number of car spaces)
 - Base pricing or "starting from" prices
 - Key features and highlights
 - URLs/links to specific floor plan pages
 
 IMPORTANT INSTRUCTIONS:
-- Search the website URL provided AND also search for "[builder name] floor plans" and "[builder name] model homes" to find comprehensive data
+- Search the website URL provided AND also search for "[builder name] floor plans" and "[builder name] model homes"
 - Extract ALL floor plans/models you can find, not just a few
 - For prices, extract the numeric value only (no dollar signs or commas). If a range is given, use the starting price.
 - For square footage, extract the numeric value only
 - If a value is not available, use null
 - Be thorough — check multiple pages if the builder has many communities or collections
-- Include the URL to each specific floor plan page when available
 
-Return your findings as a JSON object with this exact structure:
+Return your response as a JSON object with this exact structure:
 {
+  "report": "Your comprehensive narrative report here as a single string with newlines for paragraphs...",
   "plans": [
     {
       "model_name": "Plan Name / Model Name",
@@ -246,11 +258,13 @@ Search the website and related pages to find every available floor plan, model h
       const parsed = parseJsonFromText(result.text) as {
         plans: ScannedFloorPlan[];
         builder_name?: string;
+        report?: string;
       };
       scanResult = {
         plans: parsed.plans || [],
         sources: result.sources,
         builder_name: parsed.builder_name || builder_name,
+        full_report: parsed.report || "",
       };
     } catch (parseError) {
       console.error("Failed to parse AI scan response. Raw text (first 1000 chars):", result.text.substring(0, 1000));
@@ -267,6 +281,7 @@ Search the website and related pages to find every available floor plan, model h
           plans: [],
           sources: scanResult.sources,
           builder_name: scanResult.builder_name,
+          full_report: scanResult.full_report,
           message: "No floor plans found on this website. Try a more specific URL (e.g., the builder's floor plans or communities page).",
         }
       );
@@ -276,6 +291,7 @@ Search the website and related pages to find every available floor plan, model h
       plans: scanResult.plans,
       sources: scanResult.sources,
       builder_name: scanResult.builder_name,
+      full_report: scanResult.full_report,
     });
   } catch (error) {
     console.error("Floor plan scan error:", error);
@@ -288,11 +304,13 @@ Search the website and related pages to find every available floor plan, model h
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { plans, source, builder_name, competitor_id } = body as {
+  const { plans, source, builder_name, competitor_id, full_report, scan_sources } = body as {
     plans: ScannedFloorPlan[];
     source: "company" | "competitor";
     builder_name: string;
     competitor_id?: string;
+    full_report?: string;
+    scan_sources?: Array<{ title: string; url: string }>;
   };
 
   if (!plans || plans.length === 0) {
@@ -337,5 +355,51 @@ export async function PUT(request: NextRequest) {
     imported.push(saved);
   }
 
-  return NextResponse.json({ imported, count: imported.length });
+  let caseFileId: string | null = null;
+
+  if (full_report && full_report.trim()) {
+    const planSummaryLines = plans.map(
+      (p) =>
+        `• ${p.model_name}: ${p.sq_ft ? p.sq_ft + " sq ft" : "N/A"}, ${p.bedrooms ?? "?"} bed / ${p.bathrooms ?? "?"} bath, ${p.base_price ? "$" + p.base_price.toLocaleString() : "Price N/A"}`
+    );
+    const summary = `Floor plan scan of ${builder_name} — found ${plans.length} plan(s):\n${planSummaryLines.join("\n")}`;
+
+    const findings = {
+      floor_plan_report: full_report,
+      plans_extracted: plans.length,
+      plan_details: plans,
+      sources: scan_sources || [],
+    };
+
+    if (source === "competitor" && competitor_id) {
+      caseFileId = uuidv4();
+      db.prepare(
+        `INSERT INTO case_files (id, competitor_id, title, summary, research_type, status, findings, created_at, completed_at)
+         VALUES (?, ?, ?, ?, 'floor_plans', 'completed', ?, datetime('now'), datetime('now'))`
+      ).run(
+        caseFileId,
+        competitor_id,
+        `Floor Plans — ${builder_name}`,
+        summary,
+        JSON.stringify(findings)
+      );
+    } else if (source === "company") {
+      caseFileId = uuidv4();
+      const companyRow = db.prepare("SELECT id FROM company_profile LIMIT 1").get() as { id: string } | undefined;
+      if (companyRow) {
+        db.prepare(
+          `INSERT INTO case_files (id, competitor_id, title, summary, research_type, status, findings, created_at, completed_at)
+           VALUES (?, ?, ?, ?, 'floor_plans', 'completed', ?, datetime('now'), datetime('now'))`
+        ).run(
+          caseFileId,
+          `company_${companyRow.id}`,
+          `Floor Plans — ${builder_name}`,
+          summary,
+          JSON.stringify(findings)
+        );
+      }
+    }
+  }
+
+  return NextResponse.json({ imported, count: imported.length, case_file_id: caseFileId });
 }

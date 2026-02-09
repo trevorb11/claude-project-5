@@ -104,6 +104,7 @@ export default function FloorPlansPage() {
   }> | null>(null);
   const [scanSources, setScanSources] = useState<Array<{ title: string; url: string }>>([]);
   const [scanError, setScanError] = useState("");
+  const [scanFullReport, setScanFullReport] = useState("");
   const [importing, setImporting] = useState(false);
 
   const [showCsvUpload, setShowCsvUpload] = useState(false);
@@ -214,6 +215,7 @@ export default function FloorPlansPage() {
     setScanError("");
     setScanResults(null);
     setScanSources([]);
+    setScanFullReport("");
     try {
       const res = await fetch("/api/floorplans/scan", {
         method: "POST",
@@ -229,6 +231,7 @@ export default function FloorPlansPage() {
         setScanError(data.error || "Scan failed");
         return;
       }
+      if (data.full_report) setScanFullReport(data.full_report);
       if (data.message && (!data.plans || data.plans.length === 0)) {
         setScanError(data.message);
         if (data.sources) setScanSources(data.sources);
@@ -249,11 +252,14 @@ export default function FloorPlansPage() {
     }
   };
 
+  const [importSuccess, setImportSuccess] = useState<{ count: number; caseFileSaved: boolean } | null>(null);
+
   const handleImportScanned = async () => {
     if (!scanResults) return;
     const selected = scanResults.filter((p) => p.selected);
     if (selected.length === 0) return;
     setImporting(true);
+    setImportSuccess(null);
     try {
       const res = await fetch("/api/floorplans/scan", {
         method: "PUT",
@@ -263,6 +269,8 @@ export default function FloorPlansPage() {
           source: scanSource,
           builder_name: scanBuilderName.trim(),
           competitor_id: scanSource === "competitor" ? scanCompetitorId || null : null,
+          full_report: scanFullReport,
+          scan_sources: scanSources,
         }),
       });
       if (res.ok) {
@@ -270,11 +278,19 @@ export default function FloorPlansPage() {
         if (data.imported) {
           setPlans((prev) => [...(data.imported as FloorPlan[]), ...prev]);
         }
+        setImportSuccess({
+          count: data.count || selected.length,
+          caseFileSaved: !!data.case_file_id,
+        });
         setScanResults(null);
         setScanSources([]);
+        setScanFullReport("");
         setScanUrl("");
         setScanBuilderName("");
-        setShowScanForm(false);
+        setTimeout(() => {
+          setShowScanForm(false);
+          setImportSuccess(null);
+        }, 4000);
       }
     } catch {}
     setImporting(false);
@@ -288,6 +304,8 @@ export default function FloorPlansPage() {
     setScanCompetitorId("");
     setScanning(false);
     setScanResults(null);
+    setScanFullReport("");
+    setImportSuccess(null);
     setScanSources([]);
     setScanError("");
   };
@@ -525,6 +543,7 @@ export default function FloorPlansPage() {
             onScan={handleScan}
             onImport={handleImportScanned}
             onClose={resetScan}
+            importSuccess={importSuccess}
           />
         )}
 
@@ -736,6 +755,7 @@ export default function FloorPlansPage() {
             onScan={handleScan}
             onImport={handleImportScanned}
             onClose={resetScan}
+            importSuccess={importSuccess}
           />
         )}
 
@@ -1410,6 +1430,7 @@ function ScanWebsitePanel({
   onScan,
   onImport,
   onClose,
+  importSuccess,
 }: {
   scanUrl: string;
   setScanUrl: (v: string) => void;
@@ -1440,6 +1461,7 @@ function ScanWebsitePanel({
   onScan: () => void;
   onImport: () => void;
   onClose: () => void;
+  importSuccess: { count: number; caseFileSaved: boolean } | null;
 }) {
   const selectedCount = scanResults?.filter((p) => p.selected).length ?? 0;
 
@@ -1754,6 +1776,24 @@ function ScanWebsitePanel({
               <Globe className="w-4 h-4" />
               Re-scan
             </button>
+          </div>
+        </div>
+      )}
+
+      {importSuccess && (
+        <div className="bg-accent-emerald/10 border border-accent-emerald/30 rounded-xl p-4 animate-fade-in">
+          <div className="flex items-start gap-3">
+            <Check className="w-5 h-5 text-accent-emerald shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-accent-emerald">
+                {importSuccess.count} floor plan{importSuccess.count !== 1 ? "s" : ""} imported to comparison table
+              </p>
+              {importSuccess.caseFileSaved && (
+                <p className="text-xs text-text-secondary mt-1">
+                  Full research report saved as a Case File — view it on the competitor&apos;s Case Files page for the complete analysis.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}

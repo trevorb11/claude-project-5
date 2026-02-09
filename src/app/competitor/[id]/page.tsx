@@ -26,6 +26,7 @@ import {
   BarChart3,
   ExternalLink,
   Printer,
+  Home,
 } from "lucide-react";
 import { Competitor, CaseFile, CaseFileFindings } from "@/lib/types";
 
@@ -236,6 +237,7 @@ export default function CompetitorDetailPage() {
                     : "bg-bg-card border-border text-text-secondary hover:bg-bg-card-hover"
                 }`}
               >
+                {cf.research_type === "floor_plans" ? "Floor Plans — " : ""}
                 {new Date(cf.created_at).toLocaleDateString()}{" "}
                 {cf.status === "completed" && "- Complete"}
                 {cf.status === "in_progress" && "- In Progress"}
@@ -278,8 +280,55 @@ export default function CompetitorDetailPage() {
         </div>
       )}
 
+      {/* Floor Plan Report Display */}
+      {findings && selectedFile?.research_type === "floor_plans" && (
+        <div className="space-y-4">
+          <Section
+            icon={<Home className="w-4 h-4 text-accent-emerald" />}
+            title="Floor Plan Research Report"
+            delay="0.1s"
+            defaultOpen
+          >
+            {(findings as Record<string, unknown>).floor_plan_report && (
+              <div className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
+                {String((findings as Record<string, unknown>).floor_plan_report)}
+              </div>
+            )}
+            {(findings as Record<string, unknown>).plans_extracted && (
+              <div className="mt-4 p-3 bg-bg-secondary rounded-lg border border-border">
+                <p className="text-xs font-medium text-text-muted mb-1">Plans Extracted</p>
+                <p className="text-lg font-bold text-accent-emerald">{String((findings as Record<string, unknown>).plans_extracted)} floor plans added to comparison table</p>
+              </div>
+            )}
+          </Section>
+
+          {Array.isArray((findings as Record<string, unknown>).sources) && ((findings as Record<string, unknown>).sources as Array<{title: string; url: string}>).length > 0 && (
+            <Section
+              icon={<ExternalLink className="w-4 h-4 text-accent-blue" />}
+              title="Sources"
+              delay="0.15s"
+            >
+              <div className="flex flex-wrap gap-2">
+                {((findings as Record<string, unknown>).sources as Array<{title: string; url: string}>).map((s, i) => (
+                  <a
+                    key={i}
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 bg-bg-secondary rounded-lg text-accent-blue hover:bg-accent-blue/10 transition-colors flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                    {s.title}
+                  </a>
+                ))}
+              </div>
+            </Section>
+          )}
+        </div>
+      )}
+
       {/* Findings Display */}
-      {findings && (
+      {findings && selectedFile?.research_type !== "floor_plans" && (
         <div className="space-y-4">
           <Section
             icon={<Building2 className="w-4 h-4 text-accent-blue" />}

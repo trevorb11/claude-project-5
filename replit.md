@@ -95,6 +95,7 @@ src/
 - Navy/orange/teal color palette
 
 ## Recent Changes
+- 2026-02-09: Floor plan scan now saves full AI reports as Case Files — the comprehensive narrative (pricing analysis, market segments, design trends, etc.) is saved as a "Floor Plans" case file for the competitor/company, while the structured specs are extracted to the comparison table. Case file page renders floor plan reports with dedicated layout. research_type='floor_plans' distinguishes these from regular research.
 - 2026-02-09: Added CSV upload for floor plans — bulk import from CSV file for company or competitor plans, flexible column matching (aliases for common headers), preview before import, downloadable template, auto-calculates $/sqft
 - 2026-02-09: AI integration hardening — upgraded all AI calls from gpt-4o to gpt-5.2, added retry logic with exponential backoff (2 retries before failure), errors now surface instead of silently returning fake data, added /api/cron endpoint for scheduled competitor scans with background scheduler (every 5 min via instrumentation.ts), CRON_SECRET env var for endpoint protection
 - 2026-02-09: Company self-assessment integration — own company case file shown prominently on Case Files page with blue gradient card and "Your Company" badge; Compare page auto-selects company first and shows "You" badges; regular competitors filtered from company card display
