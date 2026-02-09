@@ -289,27 +289,29 @@ export default function CompetitorDetailPage() {
             delay="0.1s"
             defaultOpen
           >
-            {(findings as Record<string, unknown>).floor_plan_report && (
-              <div className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
-                {String((findings as Record<string, unknown>).floor_plan_report)}
-              </div>
-            )}
-            {(findings as Record<string, unknown>).plans_extracted && (
-              <div className="mt-4 p-3 bg-bg-secondary rounded-lg border border-border">
-                <p className="text-xs font-medium text-text-muted mb-1">Plans Extracted</p>
-                <p className="text-lg font-bold text-accent-emerald">{String((findings as Record<string, unknown>).plans_extracted)} floor plans added to comparison table</p>
-              </div>
-            )}
+            <>
+              {(findings as unknown as Record<string, unknown>).floor_plan_report ? (
+                <div className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
+                  {String((findings as unknown as Record<string, unknown>).floor_plan_report)}
+                </div>
+              ) : null}
+              {(findings as unknown as Record<string, unknown>).plans_extracted ? (
+                <div className="mt-4 p-3 bg-bg-secondary rounded-lg border border-border">
+                  <p className="text-xs font-medium text-text-muted mb-1">Plans Extracted</p>
+                  <p className="text-lg font-bold text-accent-emerald">{String((findings as unknown as Record<string, unknown>).plans_extracted)} floor plans added to comparison table</p>
+                </div>
+              ) : null}
+            </>
           </Section>
 
-          {Array.isArray((findings as Record<string, unknown>).sources) && ((findings as Record<string, unknown>).sources as Array<{title: string; url: string}>).length > 0 && (
+          {Array.isArray((findings as unknown as Record<string, unknown>).sources) && ((findings as unknown as Record<string, unknown>).sources as Array<{title: string; url: string}>).length > 0 && (
             <Section
               icon={<ExternalLink className="w-4 h-4 text-accent-blue" />}
               title="Sources"
               delay="0.15s"
             >
               <div className="flex flex-wrap gap-2">
-                {((findings as Record<string, unknown>).sources as Array<{title: string; url: string}>).map((s, i) => (
+                {((findings as unknown as Record<string, unknown>).sources as Array<{title: string; url: string}>).map((s, i) => (
                   <a
                     key={i}
                     href={s.url}
