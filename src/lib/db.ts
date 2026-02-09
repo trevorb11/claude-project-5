@@ -117,8 +117,7 @@ function initializeDb(db: Database.Database) {
       value_score REAL,
       url TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS alerts (
@@ -147,5 +146,36 @@ function initializeDb(db: Database.Database) {
     db.prepare("SELECT is_own_company FROM competitors LIMIT 1").get();
   } catch {
     db.exec("ALTER TABLE competitors ADD COLUMN is_own_company INTEGER NOT NULL DEFAULT 0");
+  }
+
+  // Migration: remove foreign key constraint from floor_plans table
+  const fpFkCheck = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='floor_plans'"
+  ).get() as { sql: string } | undefined;
+  if (fpFkCheck && fpFkCheck.sql && fpFkCheck.sql.includes("FOREIGN KEY")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS floor_plans_new (
+        id TEXT PRIMARY KEY,
+        source TEXT NOT NULL DEFAULT 'competitor',
+        competitor_id TEXT,
+        competitor_name TEXT,
+        model_name TEXT NOT NULL,
+        bedrooms INTEGER,
+        bathrooms REAL,
+        sq_ft INTEGER,
+        stories INTEGER,
+        garage_spaces INTEGER,
+        base_price REAL,
+        price_per_sqft REAL,
+        key_features TEXT,
+        value_score REAL,
+        url TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO floor_plans_new SELECT * FROM floor_plans;
+      DROP TABLE floor_plans;
+      ALTER TABLE floor_plans_new RENAME TO floor_plans;
+    `);
   }
 }
