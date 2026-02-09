@@ -154,23 +154,48 @@ async function callAI(opts: {
 
 // ─── Helper: parse JSON from AI response text ───
 
+function repairTruncatedJson(text: string): string {
+  let result = text.trim();
+  if (result.endsWith(",")) result = result.slice(0, -1);
+
+  let braces = 0;
+  let brackets = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < result.length; i++) {
+    const ch = result[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") braces++;
+    else if (ch === "}") braces--;
+    else if (ch === "[") brackets++;
+    else if (ch === "]") brackets--;
+  }
+
+  if (inString) result += '"';
+  while (brackets > 0) { result += "]"; brackets--; }
+  while (braces > 0) { result += "}"; braces--; }
+
+  return result;
+}
+
 function parseJsonFromText(text: string): unknown {
   let cleaned = text.trim();
 
-  // Strategy 1: Strip markdown code fences (```json ... ```)
   const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (fenceMatch) {
     cleaned = fenceMatch[1].trim();
   }
 
-  // Strategy 2: Try direct parse
   try {
     return JSON.parse(cleaned);
   } catch {
-    // continue to other strategies
+    // continue
   }
 
-  // Strategy 3: Find the outermost JSON object { ... }
   const firstBrace = cleaned.indexOf("{");
   const lastBrace = cleaned.lastIndexOf("}");
   if (firstBrace !== -1 && lastBrace > firstBrace) {
@@ -178,7 +203,6 @@ function parseJsonFromText(text: string): unknown {
     try {
       return JSON.parse(jsonCandidate);
     } catch {
-      // Strategy 4: Try to fix common issues (trailing commas, etc.)
       const fixed = jsonCandidate
         .replace(/,\s*}/g, "}")
         .replace(/,\s*]/g, "]")
@@ -186,11 +210,28 @@ function parseJsonFromText(text: string): unknown {
       try {
         return JSON.parse(fixed);
       } catch {
-        // Strategy 5: Remove URL citation annotations that break JSON
-        // (e.g., 【4:0†source】 patterns from web search)
         const withoutCitations = fixed.replace(/【[^】]*】/g, "");
-        return JSON.parse(withoutCitations);
+        try {
+          return JSON.parse(withoutCitations);
+        } catch {
+          // continue to truncation repair
+        }
       }
+    }
+  }
+
+  if (firstBrace !== -1) {
+    const partial = cleaned.substring(firstBrace);
+    const sanitized = partial
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]")
+      .replace(/【[^】]*】/g, "")
+      .replace(/[\x00-\x1F\x7F]/g, (ch) => (ch === "\n" || ch === "\r" || ch === "\t" ? ch : ""));
+    const repaired = repairTruncatedJson(sanitized);
+    try {
+      return JSON.parse(repaired);
+    } catch (finalErr) {
+      throw new Error(`No valid JSON object found in AI response (repair failed): ${finalErr instanceof Error ? finalErr.message : String(finalErr)}`);
     }
   }
 

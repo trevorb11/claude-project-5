@@ -81,15 +81,24 @@ export default function CompetitorDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [competitorId]);
 
+  const [researchError, setResearchError] = useState<string | null>(null);
+
   const launchResearch = async () => {
     setResearching(true);
+    setResearchError(null);
     try {
-      await fetch("/api/research", {
+      const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ competitor_id: competitorId }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setResearchError(data.error || "Research failed. Please try again.");
+      }
       await fetchData();
+    } catch {
+      setResearchError("Research request failed. Please try again.");
     } finally {
       setResearching(false);
     }
@@ -216,6 +225,12 @@ export default function CompetitorDetailPage() {
               )}
             </button>
           </div>
+
+          {researchError && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {researchError}
+            </div>
+          )}
         </div>
       </div>
 
