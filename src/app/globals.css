@@ -2,40 +2,40 @@
 @import "tailwindcss";
 
 @theme {
-  /* Builder Studio — Light Theme */
+  /* Homebuilder Studio — Brand Theme */
 
   /* Backgrounds */
   --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f8fafc;
+  --color-bg-secondary: #f7f8fa;
   --color-bg-card: #ffffff;
-  --color-bg-card-hover: #f1f5f9;
+  --color-bg-card-hover: #f3f4f6;
 
   /* Borders */
-  --color-border: #e2e8f0;
-  --color-border-highlight: #cbd5e1;
+  --color-border: #e5e7eb;
+  --color-border-highlight: #d1d5db;
 
   /* Text */
-  --color-text-primary: #374151;
+  --color-text-primary: #1f2937;
   --color-text-secondary: #6b7280;
   --color-text-muted: #9ca3af;
 
-  /* Brand Colors — Builder Studio Palette */
-  --color-accent-blue: #1e3a8a;        /* Navy primary */
-  --color-accent-blue-dim: #1e40af;    /* Navy hover */
-  --color-accent-cyan: #0d9488;        /* Teal */
-  --color-accent-emerald: #059669;     /* Green */
-  --color-accent-amber: #ea580c;       /* Builder Studio orange */
+  /* Brand Colors — Homebuilder Studio Palette */
+  --color-accent-blue: #1a365d;        /* Deep navy (from logo) */
+  --color-accent-blue-dim: #234681;    /* Navy lighter */
+  --color-accent-cyan: #5ba8a0;        /* Teal (from logo) */
+  --color-accent-emerald: #059669;     /* Green status */
+  --color-accent-amber: #e8702a;       /* Homebuilder Studio orange (from logo) */
   --color-accent-red: #dc2626;         /* Red for warnings */
-  --color-accent-purple: #1e3a8a;      /* Navy (consolidate with primary) */
+  --color-accent-purple: #1a365d;      /* Alias to navy */
 
   /* Status */
   --color-status-active: #059669;
-  --color-status-pending: #ea580c;
+  --color-status-pending: #e8702a;
   --color-status-idle: #9ca3af;
 
   /* Shadows */
-  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-card-hover: 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.04);
 }
 
 * {
@@ -43,7 +43,7 @@
 }
 
 body {
-  background-color: var(--color-bg-primary);
+  background-color: var(--color-bg-secondary);
   color: var(--color-text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -79,8 +79,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(30, 58, 138, 0.15); }
-  50% { box-shadow: 0 0 20px rgba(30, 58, 138, 0.3); }
+  0%, 100% { box-shadow: 0 0 8px rgba(26, 54, 93, 0.15); }
+  50% { box-shadow: 0 0 20px rgba(26, 54, 93, 0.3); }
 }
 
 @keyframes scan-line {
@@ -132,15 +132,18 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-card);
 }
 
+/* Brand gradient utility */
+.brand-gradient {
+  background: linear-gradient(135deg, var(--color-accent-blue), var(--color-accent-cyan));
+}
+
 /* Print / PDF Export Styles */
 @media print {
-  /* Hide sidebar and navigation */
   aside,
   .print\:hidden {
     display: none !important;
   }
 
-  /* Make main content full width */
   .flex.h-screen {
     display: block !important;
   }
@@ -148,18 +151,15 @@ h1, h2, h3, h4, h5, h6 {
     overflow: visible !important;
   }
 
-  /* Reset backgrounds for printing */
   body {
     background: white !important;
   }
 
-  /* Ensure cards have borders in print */
   .bg-bg-card {
-    border: 1px solid #e2e8f0 !important;
+    border: 1px solid #e5e7eb !important;
     break-inside: avoid;
   }
 
-  /* Remove animations */
   .animate-fade-in,
   .animate-slide-in {
     animation: none !important;
@@ -167,12 +167,10 @@ h1, h2, h3, h4, h5, h6 {
     transform: none !important;
   }
 
-  /* Remove hover effects */
   .card-hover {
     box-shadow: none !important;
   }
 
-  /* Ensure score bars print */
   .bg-accent-red,
   .bg-accent-amber,
   .bg-accent-emerald,
@@ -183,7 +181,6 @@ h1, h2, h3, h4, h5, h6 {
     print-color-adjust: exact;
   }
 
-  /* Clean page margins */
   @page {
     margin: 0.5in;
   }

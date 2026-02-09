@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Crosshair,
-  Building2,
-  Shield,
   BarChart3,
   Bell,
   Cable,
   Home,
+  Building2,
+  Shield,
 } from "lucide-react";
 
 const navItems = [
@@ -40,30 +41,31 @@ export function Sidebar() {
     };
 
     fetchUnread();
-    // Poll every 30 seconds for new alerts
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <aside className="w-64 bg-bg-secondary border-r border-border flex flex-col shrink-0 print:hidden">
-      <div className="p-5 border-b border-border">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-lg bg-accent-blue flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight text-accent-blue">
-              Builder Studio
-            </h1>
-            <p className="text-[11px] text-text-muted tracking-wide uppercase">
-              Competitive Intel
-            </p>
-          </div>
+    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 print:hidden relative">
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-blue via-accent-cyan to-accent-amber" />
+
+      <div className="px-5 pt-6 pb-4 border-b border-gray-100">
+        <Link href="/" className="flex items-center gap-2 group">
+          <Image
+            src="/images/logo.png"
+            alt="Homebuilder Studio"
+            width={160}
+            height={48}
+            className="object-contain"
+            priority
+          />
         </Link>
+        <p className="text-[10px] text-text-muted tracking-[0.15em] uppercase mt-1.5 ml-1">
+          Competitive Intelligence
+        </p>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 p-3 space-y-0.5 mt-1">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -73,16 +75,18 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all ${
                 isActive
-                  ? "bg-accent-blue/15 text-accent-blue border border-accent-blue/30"
-                  : "text-text-secondary hover:bg-bg-card hover:text-text-primary border border-transparent"
+                  ? "bg-accent-blue text-white shadow-sm"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
-              <item.icon className="w-4 h-4" />
+              <item.icon className={`w-[18px] h-[18px] ${isActive ? "text-white" : "text-gray-400"}`} />
               <span className="flex-1">{item.label}</span>
               {isAlerts && unreadCount > 0 && (
-                <span className="text-[10px] font-bold bg-accent-red text-white px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
+                  isActive ? "bg-white/20 text-white" : "bg-accent-amber text-white"
+                }`}>
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
@@ -91,10 +95,10 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-gray-100">
         <div className="flex items-center gap-2 px-2">
           <div className="w-2 h-2 rounded-full bg-accent-emerald animate-pulse" />
-          <span className="text-xs text-text-muted">System Online</span>
+          <span className="text-[11px] text-gray-400">System Online</span>
         </div>
       </div>
     </aside>
