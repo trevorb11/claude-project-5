@@ -74,7 +74,7 @@ export default function Dashboard() {
           <div className="w-16 h-16 rounded-2xl bg-accent-blue/20 flex items-center justify-center mx-auto mb-6">
             <Building2 className="w-8 h-8 text-accent-blue" />
           </div>
-          <h1 className="text-2xl font-bold mb-3">Welcome to Builder Studio</h1>
+          <h1 className="text-2xl font-bold mb-3">Welcome to Homebuilder Studio</h1>
           <p className="text-text-secondary mb-6">
             Before we can build competitive intelligence, we need to understand
             your company. This helps our research agents know what to look for
@@ -82,7 +82,7 @@ export default function Dashboard() {
           </p>
           <Link
             href="/setup"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-accent-amber hover:bg-accent-amber/90 rounded-lg text-white font-medium transition-colors shadow-sm"
           >
             <Building2 className="w-4 h-4" />
             Set Up Your Company Profile

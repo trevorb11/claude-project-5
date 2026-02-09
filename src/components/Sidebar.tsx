@@ -57,6 +57,7 @@ export function Sidebar() {
             width={160}
             height={48}
             className="object-contain"
+            style={{ width: "auto", height: "auto", maxWidth: 160, maxHeight: 48 }}
             priority
           />
         </Link>

@@ -198,7 +198,7 @@ export default function AlertsPage() {
           </p>
           <Link
             href="/competitor"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-accent-amber hover:bg-accent-amber/90 rounded-lg text-white text-sm font-medium transition-colors shadow-sm"
           >
             <Zap className="w-4 h-4" />
             Go to Case Files

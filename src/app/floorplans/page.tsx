@@ -350,7 +350,7 @@ export default function FloorPlansPage() {
                 setShowScanForm(true);
                 setShowAddForm(false);
               }}
-              className="px-4 py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 bg-accent-cyan hover:bg-accent-cyan/80 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
             >
               <Globe className="w-4 h-4" />
               Scan Website
@@ -457,7 +457,7 @@ export default function FloorPlansPage() {
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 showScanForm
                   ? "bg-bg-secondary border border-border text-text-secondary hover:bg-bg-card"
-                  : "bg-accent-blue hover:bg-accent-blue/80 text-white"
+                  : "bg-accent-cyan hover:bg-accent-cyan/80 text-white"
               }`}
             >
               {showScanForm ? (
@@ -1050,7 +1050,7 @@ function ScanWebsitePanel({
           <button
             onClick={onScan}
             disabled={scanning || !scanUrl.trim() || !scanBuilderName.trim()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-accent-blue hover:bg-accent-blue/80 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 bg-accent-cyan hover:bg-accent-cyan/80 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
           >
             {scanning ? (
               <>

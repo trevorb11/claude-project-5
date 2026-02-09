@@ -113,7 +113,7 @@ export default function CompetitorsPage() {
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 bg-accent-amber hover:bg-accent-amber/90 rounded-lg text-white text-sm font-medium transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add Competitor
@@ -198,7 +198,7 @@ export default function CompetitorsPage() {
                 <button
                   onClick={addCompetitor}
                   disabled={!newName.trim() || adding}
-                  className="flex items-center gap-2 px-4 py-2 bg-accent-blue hover:bg-accent-blue-dim disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-accent-amber hover:bg-accent-amber/90 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
                   {adding ? "Adding..." : "Add Competitor"}
@@ -219,7 +219,7 @@ export default function CompetitorsPage() {
           </p>
           <button
             onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-accent-amber hover:bg-accent-amber/90 rounded-lg text-white text-sm font-medium transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
             Add Your First Competitor

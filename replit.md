@@ -1,4 +1,4 @@
-# Builder Studio - Competitive Intelligence Platform
+# Homebuilder Studio - Competitive Intelligence Platform
 
 ## Overview
 A Next.js 16 application for competitive intelligence research. Users set up their company profile, run deep self-assessment research, track competitors, generate AI-powered research case files with web search capabilities, view competitive scoring across 7 dimensions, compare competitors side-by-side, create battle cards, track changes with automated alerts, sync data to GoHighLevel CRM, compare floor plans, and generate intelligence reports.
@@ -10,7 +10,7 @@ A Next.js 16 application for competitive intelligence research. Users set up the
 - **Styling**: Tailwind CSS v4 with PostCSS
 - **AI**: OpenAI via Replit AI Integrations (auto-configured, billed to Replit credits; falls back to simulated data)
 - **Icons**: lucide-react
-- **Theme**: Builder Studio light theme (navy/orange/teal palette)
+- **Theme**: Homebuilder Studio light theme (navy/orange/teal palette, logo at /public/images/logo.png)
 - **CRM Integration**: GoHighLevel (GHL) via built-in API client + MCP server
 
 ## Project Structure
@@ -91,6 +91,7 @@ src/
 - Navy/orange/teal color palette
 
 ## Recent Changes
+- 2026-02-09: Rebranded to match Homebuilder Studio visual identity — integrated official logo, updated color palette (navy #1a365d, orange #e8702a, teal #5ba8a0), gradient accent bar on sidebar, orange CTA buttons, teal scan buttons, updated page title
 - 2026-02-09: Added AI Website Scanner for floor plans — scans builder websites to extract floor plan specs (model names, prices, sq ft, bedrooms, etc.) with web search, shows results in preview table with select/deselect, then imports chosen plans. API at /api/floorplans/scan (POST to scan, PUT to import).
 - 2026-02-08: Fixed legacy competitive_scores — added ensureScores() helper with 5/10 defaults for pre-existing case files
 - 2026-02-08: Verified new features from GitHub PR: Compare, Battle Cards, Alerts, Floor Plans, GHL Integration, PDF Export

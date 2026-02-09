@@ -123,7 +123,7 @@ export default function ComparePage() {
         {competitorData.length >= 2 && (
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-2 px-4 py-2.5 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-lg text-white text-sm font-medium transition-colors"
           >
             <Printer className="w-4 h-4" />
             Export PDF

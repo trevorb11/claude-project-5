@@ -196,10 +196,10 @@ export default function CompetitorDetailPage() {
             <button
               onClick={launchResearch}
               disabled={researching}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm ${
                 researching
-                  ? "bg-accent-blue/20 text-accent-blue"
-                  : "bg-accent-blue hover:bg-accent-blue-dim text-white"
+                  ? "bg-accent-amber/20 text-accent-amber"
+                  : "bg-accent-amber hover:bg-accent-amber/90 text-white"
               }`}
             >
               {researching ? (
@@ -256,7 +256,7 @@ export default function CompetitorDetailPage() {
           </p>
           <button
             onClick={launchResearch}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent-amber hover:bg-accent-amber/90 rounded-lg text-white text-sm font-medium transition-colors shadow-sm"
           >
             <Play className="w-4 h-4" />
             Launch Research Agent

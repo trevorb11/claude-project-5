@@ -377,7 +377,7 @@ export default function IntegrationsPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 bg-accent-amber hover:bg-accent-amber/90 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 shadow-sm"
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

@@ -80,7 +80,7 @@ export default function BattleCardPage() {
         </p>
         <Link
           href={`/competitor/${competitorId}`}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-accent-amber hover:bg-accent-amber/90 rounded-lg text-white text-sm font-medium transition-colors shadow-sm"
         >
           Go to Case File
         </Link>
@@ -123,7 +123,7 @@ export default function BattleCardPage() {
         </div>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2.5 bg-accent-blue hover:bg-accent-blue-dim rounded-lg text-white text-sm font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-lg text-white text-sm font-medium transition-colors"
         >
           <Printer className="w-4 h-4" />
           Export PDF

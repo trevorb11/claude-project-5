@@ -164,7 +164,7 @@ export default function SetupPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2.5 bg-accent-blue hover:bg-accent-blue-dim disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 bg-accent-amber hover:bg-accent-amber/90 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors shadow-sm"
             >
               {saved ? (
                 <>
