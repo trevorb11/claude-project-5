@@ -1,0 +1,124 @@
+2026-02-09 13:55:44.16
+292727ed
+User
+Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+2026-02-09 13:55:44.16
+292727ed
+User
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment.
+2026-02-09 13:55:44.16
+292727ed
+User
+at ignore-listed frames
+2026-02-09 13:55:44.46
+292727ed
+User
+at ignore-listed frames
+2026-02-09 13:55:44.46
+292727ed
+User
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment.
+2026-02-09 13:55:44.46
+292727ed
+User
+Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+2026-02-09 13:55:47.40
+292727ed
+User
+at ignore-listed frames
+2026-02-09 13:55:47.40
+292727ed
+User
+Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+2026-02-09 13:55:47.40
+292727ed
+User
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment.
+2026-02-09 13:55:47.72
+292727ed
+User
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment.
+2026-02-09 13:55:47.72
+292727ed
+User
+at ignore-listed frames
+2026-02-09 13:55:47.72
+292727ed
+User
+Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+2026-02-09 14:28:14.61
+e0a51c9c
+System
+starting up user application
+2026-02-09 14:28:14.61
+e0a51c9c
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-02-09 14:28:14.61
+e0a51c9c
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-02-09 14:28:17.19
+e0a51c9c
+User
+> claude-project-5@1.0.0 start
+2026-02-09 14:28:17.19
+e0a51c9c
+User
+> next start -H 0.0.0.0 -p 5000
+2026-02-09 14:28:18.71
+e0a51c9c
+User
+▲ Next.js 16.1.6
+2026-02-09 14:28:18.71
+e0a51c9c
+User
+- Network: http://0.0.0.0:5000
+2026-02-09 14:28:18.71
+e0a51c9c
+User
+✓ Starting...
+2026-02-09 14:28:18.71
+e0a51c9c
+User
+- Local: http://localhost:5000
+2026-02-09 14:28:21.52
+e0a51c9c
+User
+✓ Ready in 3.8s
+2026-02-09 14:33:23.11
+292727ed
+System
+system: received signal terminated
+2026-02-09 15:06:20.51
+906c266b
+System
+starting up user application
+2026-02-09 15:06:20.52
+906c266b
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-02-09 15:06:20.52
+906c266b
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-02-09 15:06:21.95
+906c266b
+User
+> next start -H 0.0.0.0 -p 5000
+2026-02-09 15:06:21.95
+906c266b
+User
+> claude-project-5@1.0.0 start
+2026-02-09 15:06:22.69
+906c266b
+User
+▲ Next.js 16.1.6
+2026-02-09 15:06:22.69
+906c266b
+User
+- Network: http://0.0.0.0:5000
+2026-02-09 15:06:22.69
+906c266b
+User
+- Local: http://localhost:5000

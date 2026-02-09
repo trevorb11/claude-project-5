@@ -156,10 +156,45 @@ async function callAI(opts: {
 
 function parseJsonFromText(text: string): unknown {
   let cleaned = text.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+
+  // Strategy 1: Strip markdown code fences (```json ... ```)
+  const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (fenceMatch) {
+    cleaned = fenceMatch[1].trim();
   }
-  return JSON.parse(cleaned);
+
+  // Strategy 2: Try direct parse
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // continue to other strategies
+  }
+
+  // Strategy 3: Find the outermost JSON object { ... }
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const jsonCandidate = cleaned.substring(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(jsonCandidate);
+    } catch {
+      // Strategy 4: Try to fix common issues (trailing commas, etc.)
+      const fixed = jsonCandidate
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]")
+        .replace(/[\x00-\x1F\x7F]/g, (ch) => (ch === "\n" || ch === "\r" || ch === "\t" ? ch : ""));
+      try {
+        return JSON.parse(fixed);
+      } catch {
+        // Strategy 5: Remove URL citation annotations that break JSON
+        // (e.g., 【4:0†source】 patterns from web search)
+        const withoutCitations = fixed.replace(/【[^】]*】/g, "");
+        return JSON.parse(withoutCitations);
+      }
+    }
+  }
+
+  throw new Error("No valid JSON object found in AI response");
 }
 
 // ─── Competitor Deep Research (initial comprehensive analysis) ───
@@ -300,10 +335,17 @@ Return ONLY the JSON object, no markdown formatting or code blocks.`;
 
     if (!text) throw new Error("No content in API response");
 
-    const findings = parseJsonFromText(text) as CaseFileFindings;
+    let findings: CaseFileFindings;
+    try {
+      findings = parseJsonFromText(text) as CaseFileFindings;
+    } catch (parseError) {
+      console.error("Failed to parse AI research response. Raw text (first 1000 chars):", text.substring(0, 1000));
+      console.error("Parse error:", parseError);
+      throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
+
     if (sources.length > 0) findings.sources = sources;
 
-    // Ensure competitive_scores has defaults
     if (!findings.competitive_scores) {
       findings.competitive_scores = {
         product_strength: 5, market_position: 5, digital_presence: 5,
@@ -425,7 +467,15 @@ Return ONLY the JSON object, no markdown formatting or code blocks.`;
 
     if (!text) throw new Error("No content in API response");
 
-    const findings = parseJsonFromText(text) as CaseFileFindings;
+    let findings: CaseFileFindings;
+    try {
+      findings = parseJsonFromText(text) as CaseFileFindings;
+    } catch (parseError) {
+      console.error("Failed to parse AI update response. Raw text (first 1000 chars):", text.substring(0, 1000));
+      console.error("Parse error:", parseError);
+      throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
+
     if (sources.length > 0) findings.sources = sources;
 
     if (!findings.competitive_scores) {
@@ -536,7 +586,15 @@ Return ONLY the JSON object, no markdown formatting or code blocks.`;
 
     if (!text) throw new Error("No content in API response");
 
-    const findings = parseJsonFromText(text) as CompanyResearchFindings;
+    let findings: CompanyResearchFindings;
+    try {
+      findings = parseJsonFromText(text) as CompanyResearchFindings;
+    } catch (parseError) {
+      console.error("Failed to parse company research response. Raw text (first 1000 chars):", text.substring(0, 1000));
+      console.error("Parse error:", parseError);
+      throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
+
     if (sources.length > 0) findings.sources = sources;
 
     return findings;

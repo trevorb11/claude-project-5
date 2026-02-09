@@ -103,8 +103,10 @@ export async function POST() {
       "UPDATE company_research SET status = 'error' WHERE id = ?"
     ).run(researchId);
 
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("Company deep research POST error:", errorMsg);
     return NextResponse.json(
-      { error: "Company deep research failed", details: String(error) },
+      { error: "Company deep research failed. The AI search completed but had trouble formatting the results. Please try again.", details: errorMsg },
       { status: 500 }
     );
   }

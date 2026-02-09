@@ -265,8 +265,10 @@ export async function POST(request: NextRequest) {
       "UPDATE competitors SET status = 'error' WHERE id = ?"
     ).run(competitor.id);
 
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("Competitor research POST error:", errorMsg);
     return NextResponse.json(
-      { error: "Research failed", details: String(error) },
+      { error: "Research failed. The AI search completed but had trouble formatting the results. Please try again.", details: errorMsg },
       { status: 500 }
     );
   }

@@ -128,10 +128,39 @@ async function callAI(opts: {
 
 function parseJsonFromText(text: string): unknown {
   let cleaned = text.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+
+  const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (fenceMatch) {
+    cleaned = fenceMatch[1].trim();
   }
-  return JSON.parse(cleaned);
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // continue
+  }
+
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const jsonCandidate = cleaned.substring(firstBrace, lastBrace + 1);
+    try {
+      return JSON.parse(jsonCandidate);
+    } catch {
+      const fixed = jsonCandidate
+        .replace(/,\s*}/g, "}")
+        .replace(/,\s*]/g, "]")
+        .replace(/[\x00-\x1F\x7F]/g, (ch) => (ch === "\n" || ch === "\r" || ch === "\t" ? ch : ""));
+      try {
+        return JSON.parse(fixed);
+      } catch {
+        const withoutCitations = fixed.replace(/【[^】]*】/g, "");
+        return JSON.parse(withoutCitations);
+      }
+    }
+  }
+
+  throw new Error("No valid JSON object found in AI response");
 }
 
 export async function POST(request: NextRequest) {
@@ -223,10 +252,11 @@ Search the website and related pages to find every available floor plan, model h
         sources: result.sources,
         builder_name: parsed.builder_name || builder_name,
       };
-    } catch {
-      console.error("Failed to parse AI response:", result.text.substring(0, 500));
+    } catch (parseError) {
+      console.error("Failed to parse AI scan response. Raw text (first 1000 chars):", result.text.substring(0, 1000));
+      console.error("Parse error:", parseError);
       return NextResponse.json(
-        { error: "AI returned an unexpected format. Please try again." },
+        { error: "AI returned an unexpected format. Please try again — the web search found data but it couldn't be processed." },
         { status: 500 }
       );
     }
