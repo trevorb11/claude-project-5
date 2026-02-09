@@ -101,7 +101,8 @@ export default function SetupPage() {
     );
   }
 
-  const isComplete = profile.name && profile.industry && profile.description;
+  const isComplete = !!profile.name;
+  const isDetailedEnough = profile.name && profile.industry && profile.description;
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -237,6 +238,14 @@ export default function SetupPage() {
               as a baseline when generating intelligence reports, enabling direct
               head-to-head comparisons with competitors.
             </p>
+
+            {!isDetailedEnough && (
+              <div className="p-3 bg-accent-amber/10 border border-accent-amber/20 rounded-lg mb-4">
+                <p className="text-xs text-accent-amber">
+                  <strong>Tip:</strong> Fill in the Industry and What You Do fields above for richer, more accurate research results. Save your profile first, then launch deep research.
+                </p>
+              </div>
+            )}
 
             {researchError && (
               <div className="p-3 bg-accent-red/10 border border-accent-red/20 rounded-lg mb-4">
