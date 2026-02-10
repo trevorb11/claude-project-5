@@ -17,6 +17,17 @@ import {
 } from "lucide-react";
 import { Competitor, CaseFile } from "@/lib/types";
 
+const COMPETITOR_COLORS = [
+  { bg: "rgba(232, 112, 42, 0.08)", border: "#e8702a", text: "#c45a1f", dot: "#e8702a" },
+  { bg: "rgba(139, 92, 246, 0.08)", border: "#8b5cf6", text: "#7c3aed", dot: "#8b5cf6" },
+  { bg: "rgba(91, 168, 160, 0.08)", border: "#5ba8a0", text: "#3d8b83", dot: "#5ba8a0" },
+  { bg: "rgba(234, 88, 12, 0.08)", border: "#ea580c", text: "#c2410c", dot: "#ea580c" },
+  { bg: "rgba(16, 185, 129, 0.08)", border: "#10b981", text: "#059669", dot: "#10b981" },
+  { bg: "rgba(244, 63, 94, 0.08)", border: "#f43f5e", text: "#e11d48", dot: "#f43f5e" },
+  { bg: "rgba(245, 158, 11, 0.08)", border: "#f59e0b", text: "#d97706", dot: "#f59e0b" },
+  { bg: "rgba(6, 182, 212, 0.08)", border: "#06b6d4", text: "#0891b2", dot: "#06b6d4" },
+];
+
 export default function CompetitorsPage() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [caseFiles, setCaseFiles] = useState<CaseFile[]>([]);
@@ -310,6 +321,7 @@ export default function CompetitorsPage() {
             const completedFiles = files.filter((f) => f.status === "completed");
             const isResearching =
               researchingId === comp.id || comp.status === "researching";
+            const compColor = COMPETITOR_COLORS[i % COMPETITOR_COLORS.length];
 
             return (
               <div
@@ -317,18 +329,22 @@ export default function CompetitorsPage() {
                 className={`bg-bg-card border border-border rounded-xl p-5 animate-fade-in card-hover ${
                   isResearching ? "scan-effect" : ""
                 }`}
-                style={{ animationDelay: `${i * 0.05}s` }}
+                style={{ animationDelay: `${i * 0.05}s`, borderLeftWidth: "4px", borderLeftColor: compColor.border }}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <Link
-                      href={`/competitor/${comp.id}`}
-                      className="text-lg font-semibold hover:text-accent-blue transition-colors"
-                    >
-                      {comp.name}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: compColor.dot }} />
+                      <Link
+                        href={`/competitor/${comp.id}`}
+                        className="text-lg font-semibold hover:text-accent-blue transition-colors"
+                        style={{ color: compColor.text }}
+                      >
+                        {comp.name}
+                      </Link>
+                    </div>
                     {comp.website && (
-                      <div className="flex items-center gap-1 mt-1 text-xs text-text-muted">
+                      <div className="flex items-center gap-1 mt-1 text-xs text-text-muted ml-4">
                         <Globe className="w-3 h-3" />
                         {comp.website}
                       </div>

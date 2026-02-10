@@ -43,6 +43,25 @@ type SortField =
   | "garage_spaces";
 type SortDir = "asc" | "desc";
 
+const COMPETITOR_COLORS = [
+  { bg: "rgba(232, 112, 42, 0.08)", border: "rgba(232, 112, 42, 0.25)", text: "#c45a1f", dot: "#e8702a", label: "Orange" },
+  { bg: "rgba(139, 92, 246, 0.08)", border: "rgba(139, 92, 246, 0.25)", text: "#7c3aed", dot: "#8b5cf6", label: "Purple" },
+  { bg: "rgba(91, 168, 160, 0.08)", border: "rgba(91, 168, 160, 0.25)", text: "#3d8b83", dot: "#5ba8a0", label: "Teal" },
+  { bg: "rgba(234, 88, 12, 0.08)", border: "rgba(234, 88, 12, 0.25)", text: "#c2410c", dot: "#ea580c", label: "Rust" },
+  { bg: "rgba(16, 185, 129, 0.08)", border: "rgba(16, 185, 129, 0.25)", text: "#059669", dot: "#10b981", label: "Emerald" },
+  { bg: "rgba(244, 63, 94, 0.08)", border: "rgba(244, 63, 94, 0.25)", text: "#e11d48", dot: "#f43f5e", label: "Rose" },
+  { bg: "rgba(245, 158, 11, 0.08)", border: "rgba(245, 158, 11, 0.25)", text: "#d97706", dot: "#f59e0b", label: "Amber" },
+  { bg: "rgba(6, 182, 212, 0.08)", border: "rgba(6, 182, 212, 0.25)", text: "#0891b2", dot: "#06b6d4", label: "Cyan" },
+];
+
+function getCompetitorColorMap(names: string[]): Record<string, typeof COMPETITOR_COLORS[0]> {
+  const map: Record<string, typeof COMPETITOR_COLORS[0]> = {};
+  names.forEach((name, i) => {
+    map[name] = COMPETITOR_COLORS[i % COMPETITOR_COLORS.length];
+  });
+  return map;
+}
+
 const SORT_OPTIONS: { field: SortField; label: string; icon: typeof Home; defaultDir: SortDir }[] = [
   { field: "value_score", label: "Best Value", icon: Sparkles, defaultDir: "desc" },
   { field: "base_price", label: "Price", icon: DollarSign, defaultDir: "asc" },
@@ -427,7 +446,9 @@ export default function FloorPlansPage() {
 
   const companyPlans = plans.filter((p) => p.source === "company");
   const competitorPlans = plans.filter((p) => p.source === "competitor");
-  const competitorNames = [...new Set(competitorPlans.map((p) => p.competitor_name).filter(Boolean))];
+  const competitorNames = [...new Set(competitorPlans.map((p) => p.competitor_name).filter(Boolean))] as string[];
+
+  const colorMap = useMemo(() => getCompetitorColorMap(competitorNames), [competitorNames]);
 
   const topPlan = sortedPlans[0];
 
@@ -923,6 +944,7 @@ export default function FloorPlansPage() {
                       const features: string[] = plan.key_features
                         ? JSON.parse(plan.key_features)
                         : [];
+                      const compColor = !isCompany && plan.competitor_name ? colorMap[plan.competitor_name] : null;
 
                       return (
                         <tr
@@ -930,8 +952,9 @@ export default function FloorPlansPage() {
                           className={`border-b border-border last:border-b-0 transition-colors ${
                             isCompany
                               ? "bg-accent-blue/5 hover:bg-accent-blue/10"
-                              : "hover:bg-bg-secondary/50"
+                              : ""
                           } ${isTop ? "ring-1 ring-inset ring-accent-emerald/30" : ""}`}
+                          style={compColor && !isCompany ? { backgroundColor: compColor.bg } : undefined}
                         >
                           <td className="px-4 py-3">
                             <span
@@ -953,18 +976,18 @@ export default function FloorPlansPage() {
                                   <Building2 className="w-3.5 h-3.5 text-accent-blue" />
                                 </div>
                               ) : (
-                                <div className="w-6 h-6 rounded bg-bg-secondary flex items-center justify-center shrink-0">
-                                  <Home className="w-3.5 h-3.5 text-text-muted" />
+                                <div
+                                  className="w-6 h-6 rounded flex items-center justify-center shrink-0"
+                                  style={{ backgroundColor: compColor ? compColor.border : "var(--color-bg-secondary)" }}
+                                >
+                                  <Home className="w-3.5 h-3.5" style={{ color: compColor ? compColor.text : "var(--color-text-muted)" }} />
                                 </div>
                               )}
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   <p
-                                    className={`text-sm font-medium truncate ${
-                                      isCompany
-                                        ? "text-accent-blue"
-                                        : "text-text-primary"
-                                    }`}
+                                    className="text-sm font-medium truncate"
+                                    style={{ color: isCompany ? "var(--color-accent-blue)" : compColor ? compColor.text : "var(--color-text-primary)" }}
                                   >
                                     {plan.model_name}
                                   </p>
@@ -982,13 +1005,15 @@ export default function FloorPlansPage() {
                                     </a>
                                   )}
                                 </div>
-                                <p className="text-xs text-text-muted truncate">
+                                <p className="text-xs truncate">
                                   {isCompany ? (
                                     <span className="text-accent-blue font-medium">
                                       Your Company
                                     </span>
                                   ) : (
-                                    plan.competitor_name || "Competitor"
+                                    <span style={{ color: compColor ? compColor.text : "var(--color-text-muted)" }} className="font-medium">
+                                      {plan.competitor_name || "Competitor"}
+                                    </span>
                                   )}
                                 </p>
                               </div>
@@ -1086,18 +1111,27 @@ export default function FloorPlansPage() {
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 mt-4 text-xs text-text-muted print:hidden">
+            <div className="flex items-center gap-4 mt-4 text-xs text-text-muted print:hidden flex-wrap">
               <div className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded bg-accent-blue/20" />
-                <span>Your company&apos;s plans (highlighted)</span>
+                <span>Your company</span>
               </div>
+              {competitorNames.map((name) => {
+                const c = colorMap[name];
+                return c ? (
+                  <div key={name} className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded" style={{ backgroundColor: c.dot }} />
+                    <span>{name}</span>
+                  </div>
+                ) : null;
+              })}
               <div className="flex items-center gap-1.5">
                 <Star className="w-3 h-3 text-accent-emerald fill-accent-emerald" />
-                <span>Top ranked for current sort</span>
+                <span>Top ranked</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Sparkles className="w-3 h-3 text-accent-purple" />
-                <span>AI-scored value (click &quot;AI Value Score&quot; to compute)</span>
+                <span>AI value score</span>
               </div>
             </div>
           </>
