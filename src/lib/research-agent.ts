@@ -724,24 +724,41 @@ export async function generateIntelligenceReport(
   allFindings: Array<{ competitorName: string; findings: CaseFileFindings }>,
   companyResearch?: CompanyResearchFindings | null
 ): Promise<{ content: string; highlights: string }> {
-  const companyDeepDiveSection = companyResearch
-    ? `
+  let companyDeepDiveSection = "";
+  if (companyResearch) {
+    try {
+      const overview = companyResearch.overview?.summary || "N/A";
+      const strengths = companyResearch.market_position?.strengths?.join(", ") || "N/A";
+      const weaknesses = companyResearch.market_position?.weaknesses?.join(", ") || "N/A";
+      const swotStrengths = companyResearch.swot_analysis?.strengths?.join(", ") || "N/A";
+      const swotWeaknesses = companyResearch.swot_analysis?.weaknesses?.join(", ") || "N/A";
+      const swotOpportunities = companyResearch.swot_analysis?.opportunities?.join(", ") || "N/A";
+      const swotThreats = companyResearch.swot_analysis?.threats?.join(", ") || "N/A";
+      const growthAreas = companyResearch.strategic_assessment?.growth_areas?.map((g) => g.area).join(", ") || "N/A";
+      const riskFactors = companyResearch.strategic_assessment?.risk_factors?.map((r) => r.risk).join(", ") || "N/A";
+      const marketPosition = companyResearch.market_position?.summary || "N/A";
+      const sentiment = companyResearch.customer_intelligence?.sentiment || "N/A";
+
+      companyDeepDiveSection = `
 
 You also have a deep-dive self-assessment of ${myCompany.name} to use as a baseline for comparisons:
-- Overview: ${companyResearch.overview.summary}
-- Strengths: ${companyResearch.market_position.strengths.join(", ")}
-- Weaknesses: ${companyResearch.market_position.weaknesses.join(", ")}
-- SWOT Strengths: ${companyResearch.swot_analysis.strengths.join(", ")}
-- SWOT Weaknesses: ${companyResearch.swot_analysis.weaknesses.join(", ")}
-- SWOT Opportunities: ${companyResearch.swot_analysis.opportunities.join(", ")}
-- SWOT Threats: ${companyResearch.swot_analysis.threats.join(", ")}
-- Growth Areas: ${companyResearch.strategic_assessment.growth_areas.map((g) => g.area).join(", ")}
-- Risk Factors: ${companyResearch.strategic_assessment.risk_factors.map((r) => r.risk).join(", ")}
-- Market Position: ${companyResearch.market_position.summary}
-- Customer Sentiment: ${companyResearch.customer_intelligence.sentiment}
+- Overview: ${overview}
+- Strengths: ${strengths}
+- Weaknesses: ${weaknesses}
+- SWOT Strengths: ${swotStrengths}
+- SWOT Weaknesses: ${swotWeaknesses}
+- SWOT Opportunities: ${swotOpportunities}
+- SWOT Threats: ${swotThreats}
+- Growth Areas: ${growthAreas}
+- Risk Factors: ${riskFactors}
+- Market Position: ${marketPosition}
+- Customer Sentiment: ${sentiment}
 
-Use this self-assessment to make DIRECT, SPECIFIC comparisons between ${myCompany.name} and each competitor. Identify where ${myCompany.name} has genuine advantages, where competitors outperform them, and where the gaps are.`
-    : "";
+Use this self-assessment to make DIRECT, SPECIFIC comparisons between ${myCompany.name} and each competitor. Identify where ${myCompany.name} has genuine advantages, where competitors outperform them, and where the gaps are.`;
+    } catch {
+      companyDeepDiveSection = "";
+    }
+  }
 
   const systemPrompt = `You are a Chief Intelligence Officer preparing a strategic briefing for ${myCompany.name}.
 Industry: ${myCompany.industry}
@@ -753,10 +770,20 @@ Synthesize the competitive intelligence from multiple case files into a clear, a
 
   const findingsSummary = allFindings
     .map((f) => {
-      const scoreSection = f.findings.competitive_scores
-        ? `\nScores (1-10): Product=${f.findings.competitive_scores.product_strength}, Market=${f.findings.competitive_scores.market_position}, Digital=${f.findings.competitive_scores.digital_presence}, Customer=${f.findings.competitive_scores.customer_satisfaction}, Pricing=${f.findings.competitive_scores.pricing_competitiveness}, Innovation=${f.findings.competitive_scores.innovation_velocity}, Threat=${f.findings.competitive_scores.overall_threat_level}`
-        : "";
-      return `## ${f.competitorName}\n${f.findings.overview.summary}\nStrengths: ${f.findings.market_position.strengths.join(", ")}\nWeaknesses: ${f.findings.market_position.weaknesses.join(", ")}\nThreats: ${f.findings.competitive_analysis.direct_threats.join(", ")}\nOpportunities: ${f.findings.competitive_analysis.opportunities_for_you.join(", ")}${scoreSection}`;
+      try {
+        const scores = f.findings.competitive_scores;
+        const scoreSection = scores
+          ? `\nScores (1-10): Product=${scores.product_strength || "N/A"}, Market=${scores.market_position || "N/A"}, Digital=${scores.digital_presence || "N/A"}, Customer=${scores.customer_satisfaction || "N/A"}, Pricing=${scores.pricing_competitiveness || "N/A"}, Innovation=${scores.innovation_velocity || "N/A"}, Threat=${scores.overall_threat_level || "N/A"}`
+          : "";
+        const overview = f.findings.overview?.summary || "No overview available";
+        const strengths = f.findings.market_position?.strengths?.join(", ") || "N/A";
+        const weaknesses = f.findings.market_position?.weaknesses?.join(", ") || "N/A";
+        const threats = f.findings.competitive_analysis?.direct_threats?.join(", ") || "N/A";
+        const opportunities = f.findings.competitive_analysis?.opportunities_for_you?.join(", ") || "N/A";
+        return `## ${f.competitorName}\n${overview}\nStrengths: ${strengths}\nWeaknesses: ${weaknesses}\nThreats: ${threats}\nOpportunities: ${opportunities}${scoreSection}`;
+      } catch {
+        return `## ${f.competitorName}\nFindings available but could not be fully parsed.`;
+      }
     })
     .join("\n\n");
 
