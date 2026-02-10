@@ -6,16 +6,14 @@ import OpenAI from "openai";
 const OPENAI_API_KEY = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE_URL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || "https://api.openai.com/v1";
 
-// POST /api/floorplans/score — compute AI "best value" scores for all floor plans
 export async function POST() {
-  const db = getDb();
-  const plans = db.prepare("SELECT * FROM floor_plans").all() as FloorPlan[];
+  const db = await getDb();
+  const plans = await db.getAll<FloorPlan>("SELECT * FROM floor_plans");
 
   if (plans.length === 0) {
     return NextResponse.json({ scored: 0 });
   }
 
-  // Build a summary for AI scoring
   const planSummaries = plans.map((p) => ({
     id: p.id,
     model_name: p.model_name,
@@ -73,22 +71,19 @@ ${JSON.stringify(planSummaries, null, 2)}`,
       scores = JSON.parse(cleaned);
     } catch (error) {
       console.error("Floor plan scoring error:", error);
-      // Fallback: compute a simple heuristic score
       scores = computeHeuristicScores(plans);
     }
   } else {
     scores = computeHeuristicScores(plans);
   }
 
-  // Update scores in DB
-  const updateStmt = db.prepare(
-    "UPDATE floor_plans SET value_score = ?, updated_at = datetime('now') WHERE id = ?"
-  );
-
   let scored = 0;
   for (const [id, score] of Object.entries(scores)) {
     if (typeof score === "number" && score >= 1 && score <= 10) {
-      updateStmt.run(score, id);
+      await db.run(
+        "UPDATE floor_plans SET value_score = $1, updated_at = NOW() WHERE id = $2",
+        [score, id]
+      );
       scored++;
     }
   }
@@ -99,10 +94,8 @@ ${JSON.stringify(planSummaries, null, 2)}`,
 function computeHeuristicScores(plans: FloorPlan[]): Record<string, number> {
   const scores: Record<string, number> = {};
 
-  // Collect stats for normalization
-  const prices = plans.filter((p) => p.base_price).map((p) => p.base_price!);
-  const sqfts = plans.filter((p) => p.sq_ft).map((p) => p.sq_ft!);
   const ppsqfts = plans.filter((p) => p.price_per_sqft).map((p) => p.price_per_sqft!);
+  const sqfts = plans.filter((p) => p.sq_ft).map((p) => p.sq_ft!);
 
   const minPPSF = ppsqfts.length > 0 ? Math.min(...ppsqfts) : 100;
   const maxPPSF = ppsqfts.length > 0 ? Math.max(...ppsqfts) : 300;
@@ -110,25 +103,21 @@ function computeHeuristicScores(plans: FloorPlan[]): Record<string, number> {
   const maxSqft = sqfts.length > 0 ? Math.max(...sqfts) : 3000;
 
   for (const plan of plans) {
-    let score = 5; // baseline
+    let score = 5;
 
-    // Price per sqft bonus (lower = better value)
     if (plan.price_per_sqft && maxPPSF > minPPSF) {
       const ppsfNorm = 1 - (plan.price_per_sqft - minPPSF) / (maxPPSF - minPPSF);
       score += ppsfNorm * 2;
     }
 
-    // Size bonus
     if (plan.sq_ft && maxSqft > 0) {
       score += (plan.sq_ft / maxSqft) * 1;
     }
 
-    // Bedroom bonus
     if (plan.bedrooms) {
       score += (plan.bedrooms / maxBeds) * 1;
     }
 
-    // Garage bonus
     if (plan.garage_spaces && plan.garage_spaces >= 2) {
       score += 0.5;
     }

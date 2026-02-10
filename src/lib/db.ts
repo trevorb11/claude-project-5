@@ -1,27 +1,15 @@
-import Database from "better-sqlite3";
-import path from "path";
+import { Pool, QueryResult } from "pg";
 
-const DB_PATH = path.join(process.cwd(), "data", "casefiles.db");
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
-let db: Database.Database | null = null;
+let initialized = false;
 
-export function getDb(): Database.Database {
-  if (!db) {
-    const fs = require("fs");
-    const dir = path.dirname(DB_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    db = new Database(DB_PATH);
-    db.pragma("journal_mode = WAL");
-    db.pragma("foreign_keys = OFF");
-    initializeDb(db);
-  }
-  return db;
-}
+async function initializeDb(): Promise<void> {
+  if (initialized) return;
 
-function initializeDb(db: Database.Database) {
-  db.exec(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS company_profile (
       id TEXT PRIMARY KEY DEFAULT 'main',
       name TEXT NOT NULL DEFAULT '',
@@ -30,8 +18,8 @@ function initializeDb(db: Database.Database) {
       products TEXT NOT NULL DEFAULT '',
       target_market TEXT NOT NULL DEFAULT '',
       key_differentiators TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS competitors (
@@ -44,8 +32,8 @@ function initializeDb(db: Database.Database) {
       next_research TEXT,
       status TEXT DEFAULT 'idle',
       is_own_company INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS case_files (
@@ -57,7 +45,7 @@ function initializeDb(db: Database.Database) {
       status TEXT DEFAULT 'pending',
       findings TEXT,
       raw_data TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       completed_at TEXT
     );
 
@@ -65,7 +53,7 @@ function initializeDb(db: Database.Database) {
       id TEXT PRIMARY KEY,
       findings TEXT,
       status TEXT DEFAULT 'pending',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       completed_at TEXT
     );
 
@@ -75,7 +63,7 @@ function initializeDb(db: Database.Database) {
       content TEXT NOT NULL,
       highlights TEXT,
       competitor_ids TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS ghl_config (
@@ -86,8 +74,8 @@ function initializeDb(db: Database.Database) {
       sync_on_research INTEGER NOT NULL DEFAULT 1,
       sync_on_alert INTEGER NOT NULL DEFAULT 1,
       last_synced TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS ghl_contact_mappings (
@@ -95,7 +83,7 @@ function initializeDb(db: Database.Database) {
       competitor_id TEXT NOT NULL UNIQUE,
       ghl_contact_id TEXT NOT NULL,
       last_synced TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS floor_plans (
@@ -105,17 +93,17 @@ function initializeDb(db: Database.Database) {
       competitor_name TEXT,
       model_name TEXT NOT NULL,
       bedrooms INTEGER,
-      bathrooms REAL,
+      bathrooms DOUBLE PRECISION,
       sq_ft INTEGER,
       stories INTEGER,
       garage_spaces INTEGER,
-      base_price REAL,
-      price_per_sqft REAL,
+      base_price DOUBLE PRECISION,
+      price_per_sqft DOUBLE PRECISION,
       key_features TEXT,
-      value_score REAL,
+      value_score DOUBLE PRECISION,
       url TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS alerts (
@@ -128,39 +116,44 @@ function initializeDb(db: Database.Database) {
       title TEXT NOT NULL,
       description TEXT NOT NULL,
       read INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
 
-  // Ensure a default profile row exists
-  const existing = db.prepare("SELECT id FROM company_profile WHERE id = 'main'").get();
-  if (!existing) {
-    db.prepare("INSERT INTO company_profile (id) VALUES ('main')").run();
+  const existing = await pool.query("SELECT id FROM company_profile WHERE id = 'main'");
+  if (existing.rows.length === 0) {
+    await pool.query("INSERT INTO company_profile (id) VALUES ('main')");
   }
 
-  // Migration: add is_own_company column if missing
-  try {
-    db.prepare("SELECT is_own_company FROM competitors LIMIT 1").get();
-  } catch {
-    db.exec("ALTER TABLE competitors ADD COLUMN is_own_company INTEGER NOT NULL DEFAULT 0");
-  }
+  initialized = true;
+}
 
-  // Migration: remove foreign key constraints from tables
-  const tables = ["floor_plans", "case_files", "ghl_contact_mappings", "alerts"];
-  for (const tbl of tables) {
-    const row = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type='table' AND name=?"
-    ).get(tbl) as { sql: string } | undefined;
-    if (row && row.sql && row.sql.includes("FOREIGN KEY")) {
-      const newSql = row.sql
-        .replace(/,\s*FOREIGN KEY\s*\([^)]+\)\s*REFERENCES\s*[^)]+\)\s*(ON\s+DELETE\s+CASCADE)?/gi, "")
-        .replace(new RegExp(`^CREATE TABLE ${tbl}`, "i"), `CREATE TABLE ${tbl}_migrated`);
-      db.exec(`
-        ${newSql};
-        INSERT INTO ${tbl}_migrated SELECT * FROM ${tbl};
-        DROP TABLE ${tbl};
-        ALTER TABLE ${tbl}_migrated RENAME TO ${tbl};
-      `);
-    }
-  }
+export interface DbClient {
+  query: <T extends Record<string, unknown> = Record<string, unknown>>(text: string, params?: unknown[]) => Promise<QueryResult<T>>;
+  getOne: <T = Record<string, unknown>>(text: string, params?: unknown[]) => Promise<T | undefined>;
+  getAll: <T = Record<string, unknown>>(text: string, params?: unknown[]) => Promise<T[]>;
+  run: (text: string, params?: unknown[]) => Promise<void>;
+}
+
+export async function getDb(): Promise<DbClient> {
+  await initializeDb();
+
+  return {
+    query: <T extends Record<string, unknown> = Record<string, unknown>>(text: string, params?: unknown[]) =>
+      pool.query<T>(text, params),
+
+    getOne: async <T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T | undefined> => {
+      const result = await pool.query(text, params);
+      return result.rows[0] as T | undefined;
+    },
+
+    getAll: async <T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]> => {
+      const result = await pool.query(text, params);
+      return result.rows as T[];
+    },
+
+    run: async (text: string, params?: unknown[]): Promise<void> => {
+      await pool.query(text, params);
+    },
+  };
 }

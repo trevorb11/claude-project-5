@@ -1,15 +1,3 @@
-/**
- * GoHighLevel API Client
- *
- * Handles all communication with the GHL API v2:
- * - Contact CRUD (create/update competitors as contacts)
- * - Custom field management (create/update competitive intel fields)
- * - Field value syncing (push scores, alerts, findings to contact fields)
- *
- * GHL API v2 base: https://services.leadconnectorhq.com
- * Auth: Bearer token (API key) + Version header
- */
-
 import { getDb } from "./db";
 import {
   GHLConfig,
@@ -23,22 +11,18 @@ import {
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
 const GHL_API_VERSION = "2021-07-28";
 
-// ─── Config helpers ───
-
-export function getGHLConfig(): GHLConfig | null {
-  const db = getDb();
-  const config = db
-    .prepare("SELECT * FROM ghl_config WHERE id = 'main'")
-    .get() as GHLConfig | undefined;
+export async function getGHLConfig(): Promise<GHLConfig | null> {
+  const db = await getDb();
+  const config = await db.getOne<GHLConfig>(
+    "SELECT * FROM ghl_config WHERE id = 'main'"
+  );
   return config || null;
 }
 
-export function isGHLEnabled(): boolean {
-  const config = getGHLConfig();
+export async function isGHLEnabled(): Promise<boolean> {
+  const config = await getGHLConfig();
   return !!(config && config.enabled && config.api_key && config.location_id);
 }
-
-// ─── Core API caller ───
 
 async function ghlFetch(
   path: string,
@@ -67,15 +51,11 @@ async function ghlFetch(
   try {
     data = (await res.json()) as Record<string, unknown>;
   } catch {
-    // Some GHL endpoints return empty bodies
   }
 
   return { ok: res.ok, status: res.status, data };
 }
 
-// ─── Custom Fields ───
-
-/** The custom fields we manage in GHL. Key = our internal name, value = GHL field config */
 const CUSTOM_FIELD_DEFINITIONS: Array<{
   key: keyof GHLCompetitorFields;
   name: string;
@@ -104,15 +84,10 @@ const CUSTOM_FIELD_DEFINITIONS: Array<{
   { key: "total_alerts", name: "Total Alerts", dataType: "TEXT" },
 ];
 
-/**
- * Ensure all our custom fields exist in the GHL location.
- * Returns a map of our field keys → GHL custom field IDs.
- */
 export async function ensureCustomFields(
   apiKey: string,
   locationId: string
 ): Promise<Record<string, string>> {
-  // Fetch existing custom fields
   const existing = await ghlFetch(
     `/locations/${locationId}/customFields`,
     { apiKey }
@@ -125,13 +100,12 @@ export async function ensureCustomFields(
   const fieldMap: Record<string, string> = {};
 
   for (const def of CUSTOM_FIELD_DEFINITIONS) {
-    const ghlFieldName = `CI: ${def.name}`; // Prefix with "CI:" to namespace our fields
+    const ghlFieldName = `CI: ${def.name}`;
     const found = existingFields.find((f) => f.name === ghlFieldName);
 
     if (found) {
       fieldMap[def.key] = found.id;
     } else {
-      // Create the custom field
       const created = await ghlFetch(
         `/locations/${locationId}/customFields`,
         {
@@ -155,29 +129,22 @@ export async function ensureCustomFields(
   return fieldMap;
 }
 
-// ─── Contact Management ───
-
-/**
- * Find or create a GHL contact for a competitor.
- * Uses the contact mapping table to track which competitor maps to which GHL contact.
- */
 export async function findOrCreateContact(
   apiKey: string,
   locationId: string,
   competitor: Competitor
 ): Promise<string | null> {
-  const db = getDb();
+  const db = await getDb();
 
-  // Check if we already have a mapping
-  const mapping = db
-    .prepare("SELECT * FROM ghl_contact_mappings WHERE competitor_id = ?")
-    .get(competitor.id) as GHLContactMapping | undefined;
+  const mapping = await db.getOne<GHLContactMapping>(
+    "SELECT * FROM ghl_contact_mappings WHERE competitor_id = $1",
+    [competitor.id]
+  );
 
   if (mapping) {
     return mapping.ghl_contact_id;
   }
 
-  // Search for an existing contact by company name
   const searchRes = await ghlFetch(
     `/contacts/search/duplicate?locationId=${locationId}&companyName=${encodeURIComponent(competitor.name)}`,
     { apiKey }
@@ -185,15 +152,14 @@ export async function findOrCreateContact(
 
   if (searchRes.ok && searchRes.data?.contact) {
     const contact = searchRes.data.contact as { id: string };
-    // Save mapping
-    db.prepare(
+    await db.run(
       `INSERT INTO ghl_contact_mappings (id, competitor_id, ghl_contact_id)
-       VALUES (?, ?, ?)`
-    ).run(crypto.randomUUID(), competitor.id, contact.id);
+       VALUES ($1, $2, $3)`,
+      [crypto.randomUUID(), competitor.id, contact.id]
+    );
     return contact.id;
   }
 
-  // Create new contact
   const createRes = await ghlFetch("/contacts/", {
     method: "POST",
     apiKey,
@@ -209,10 +175,11 @@ export async function findOrCreateContact(
 
   if (createRes.ok && createRes.data?.contact) {
     const contact = createRes.data.contact as { id: string };
-    db.prepare(
+    await db.run(
       `INSERT INTO ghl_contact_mappings (id, competitor_id, ghl_contact_id)
-       VALUES (?, ?, ?)`
-    ).run(crypto.randomUUID(), competitor.id, contact.id);
+       VALUES ($1, $2, $3)`,
+      [crypto.randomUUID(), competitor.id, contact.id]
+    );
     return contact.id;
   }
 
@@ -220,9 +187,6 @@ export async function findOrCreateContact(
   return null;
 }
 
-/**
- * Update a GHL contact's custom field values.
- */
 async function updateContactFields(
   apiKey: string,
   contactId: string,
@@ -249,9 +213,6 @@ async function updateContactFields(
   return res.ok;
 }
 
-/**
- * Add a note to a GHL contact.
- */
 async function addContactNote(
   apiKey: string,
   contactId: string,
@@ -266,9 +227,6 @@ async function addContactNote(
   return res.ok;
 }
 
-/**
- * Add a tag to a GHL contact.
- */
 async function addContactTag(
   apiKey: string,
   contactId: string,
@@ -283,22 +241,16 @@ async function addContactTag(
   return res.ok;
 }
 
-// ─── High-level Sync Functions ───
-
-/**
- * Sync a competitor's research findings to their GHL contact.
- * Called after research completes.
- */
 export async function syncCompetitorToGHL(
   competitor: Competitor,
   findings: CaseFileFindings
 ): Promise<{ success: boolean; error?: string }> {
-  const config = getGHLConfig();
+  const config = await getGHLConfig();
   if (!config || !config.enabled || !config.api_key || !config.location_id) {
     return { success: false, error: "GHL integration not configured" };
   }
   if (!config.sync_on_research) {
-    return { success: true }; // Sync disabled, skip silently
+    return { success: true };
   }
 
   try {
@@ -313,7 +265,6 @@ export async function syncCompetitorToGHL(
       return { success: false, error: "Could not find or create GHL contact" };
     }
 
-    // Build field values from findings
     const scores = findings.competitive_scores;
     const fieldValues: Partial<GHLCompetitorFields> = {
       competitor_name: competitor.name,
@@ -337,14 +288,12 @@ export async function syncCompetitorToGHL(
 
     await updateContactFields(config.api_key, contactId, fieldMap, fieldValues);
 
-    // Add a research note
     await addContactNote(
       config.api_key,
       contactId,
       `📊 Research Update — ${new Date().toLocaleDateString()}\n\n${findings.overview.summary.substring(0, 500)}\n\nThreat Level: ${scores?.overall_threat_level || "N/A"}/10\n\nTop Strengths:\n${findings.market_position.strengths.slice(0, 3).map((s) => `• ${s}`).join("\n")}\n\nTop Weaknesses:\n${findings.market_position.weaknesses.slice(0, 3).map((w) => `• ${w}`).join("\n")}`
     );
 
-    // Tag based on threat level
     if (scores) {
       const tags: string[] = [];
       if (scores.overall_threat_level >= 8) tags.push("high-threat");
@@ -353,14 +302,14 @@ export async function syncCompetitorToGHL(
       await addContactTag(config.api_key, contactId, tags);
     }
 
-    // Update last_synced in mapping
-    const db = getDb();
-    db.prepare(
-      "UPDATE ghl_contact_mappings SET last_synced = datetime('now') WHERE competitor_id = ?"
-    ).run(competitor.id);
-    db.prepare(
-      "UPDATE ghl_config SET last_synced = datetime('now') WHERE id = 'main'"
-    ).run();
+    const db = await getDb();
+    await db.run(
+      "UPDATE ghl_contact_mappings SET last_synced = NOW() WHERE competitor_id = $1",
+      [competitor.id]
+    );
+    await db.run(
+      "UPDATE ghl_config SET last_synced = NOW() WHERE id = 'main'"
+    );
 
     return { success: true };
   } catch (error) {
@@ -369,45 +318,40 @@ export async function syncCompetitorToGHL(
   }
 }
 
-/**
- * Push an alert to the corresponding GHL contact.
- * Updates the latest alert fields and adds a note.
- */
 export async function pushAlertToGHL(
   alert: CompetitiveAlert
 ): Promise<{ success: boolean; error?: string }> {
-  const config = getGHLConfig();
+  const config = await getGHLConfig();
   if (!config || !config.enabled || !config.api_key || !config.location_id) {
     return { success: false, error: "GHL integration not configured" };
   }
   if (!config.sync_on_alert) {
-    return { success: true }; // Alert sync disabled
+    return { success: true };
   }
 
   try {
-    const db = getDb();
-    const mapping = db
-      .prepare("SELECT * FROM ghl_contact_mappings WHERE competitor_id = ?")
-      .get(alert.competitor_id) as GHLContactMapping | undefined;
+    const db = await getDb();
+    const mapping = await db.getOne<GHLContactMapping>(
+      "SELECT * FROM ghl_contact_mappings WHERE competitor_id = $1",
+      [alert.competitor_id]
+    );
 
     if (!mapping) {
-      // No GHL contact for this competitor yet — skip
       return { success: true };
     }
 
     const fieldMap = await ensureCustomFields(config.api_key, config.location_id);
 
-    // Count total alerts for this competitor
-    const alertCount = db
-      .prepare("SELECT COUNT(*) as count FROM alerts WHERE competitor_id = ?")
-      .get(alert.competitor_id) as { count: number };
+    const alertCount = await db.getOne<{ count: number }>(
+      "SELECT COUNT(*) as count FROM alerts WHERE competitor_id = $1",
+      [alert.competitor_id]
+    );
 
-    // Update alert fields
     const fieldValues: Partial<GHLCompetitorFields> = {
       latest_alert: alert.title,
       latest_alert_severity: alert.severity.toUpperCase(),
       latest_alert_date: new Date(alert.created_at).toISOString(),
-      total_alerts: String(alertCount.count),
+      total_alerts: String(alertCount?.count || 0),
     };
 
     await updateContactFields(
@@ -417,7 +361,6 @@ export async function pushAlertToGHL(
       fieldValues
     );
 
-    // Add alert as a note
     const severityEmoji =
       alert.severity === "high" ? "🔴" : alert.severity === "medium" ? "🟠" : "🟢";
 
@@ -427,7 +370,6 @@ export async function pushAlertToGHL(
       `${severityEmoji} Alert: ${alert.title}\n\nSeverity: ${alert.severity.toUpperCase()}\nType: ${alert.alert_type}\n\n${alert.description}`
     );
 
-    // Tag with alert severity
     await addContactTag(config.api_key, mapping.ghl_contact_id, [
       `alert-${alert.severity}`,
       `alert-${alert.alert_type}`,
@@ -440,9 +382,6 @@ export async function pushAlertToGHL(
   }
 }
 
-/**
- * Validate GHL credentials by making a test API call.
- */
 export async function testGHLConnection(
   apiKey: string,
   locationId: string
@@ -468,34 +407,29 @@ export async function testGHLConnection(
   }
 }
 
-/**
- * Full sync: push all competitors with research data to GHL.
- */
 export async function fullSyncToGHL(): Promise<{
   synced: number;
   errors: number;
   details: Array<{ competitor: string; success: boolean; error?: string }>;
 }> {
-  const db = getDb();
-  const config = getGHLConfig();
+  const db = await getDb();
+  const config = await getGHLConfig();
 
   if (!config || !config.enabled || !config.api_key || !config.location_id) {
     return { synced: 0, errors: 0, details: [] };
   }
 
-  const competitors = db
-    .prepare("SELECT * FROM competitors")
-    .all() as Competitor[];
+  const competitors = await db.getAll<Competitor>(
+    "SELECT * FROM competitors"
+  );
 
   const results: Array<{ competitor: string; success: boolean; error?: string }> = [];
 
   for (const competitor of competitors) {
-    // Get latest completed case file
-    const caseFile = db
-      .prepare(
-        "SELECT * FROM case_files WHERE competitor_id = ? AND status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
-      )
-      .get(competitor.id) as { findings: string } | undefined;
+    const caseFile = await db.getOne<{ findings: string }>(
+      "SELECT * FROM case_files WHERE competitor_id = $1 AND status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1",
+      [competitor.id]
+    );
 
     if (!caseFile) {
       results.push({ competitor: competitor.name, success: true, error: "No research data" });
@@ -511,9 +445,9 @@ export async function fullSyncToGHL(): Promise<{
     }
   }
 
-  db.prepare(
-    "UPDATE ghl_config SET last_synced = datetime('now') WHERE id = 'main'"
-  ).run();
+  await db.run(
+    "UPDATE ghl_config SET last_synced = NOW() WHERE id = 'main'"
+  );
 
   return {
     synced: results.filter((r) => r.success).length,

@@ -7,23 +7,21 @@ import { runCompanyDeepResearch, convertCompanyToCaseFileFindings } from "@/lib/
 const COMPANY_COMPETITOR_ID = "__own_company__";
 
 export async function GET() {
-  const db = getDb();
-  const research = db
-    .prepare(
-      "SELECT * FROM company_research ORDER BY created_at DESC LIMIT 1"
-    )
-    .get() as CompanyResearch | undefined;
+  const db = await getDb();
+  const research = await db.getOne<CompanyResearch>(
+    "SELECT * FROM company_research ORDER BY created_at DESC LIMIT 1"
+  );
   return NextResponse.json(research || null);
 }
 
 export async function POST() {
-  const db = getDb();
+  const db = await getDb();
 
-  const myCompany = db
-    .prepare("SELECT * FROM company_profile WHERE id = 'main'")
-    .get() as CompanyProfile;
+  const myCompany = await db.getOne<CompanyProfile>(
+    "SELECT * FROM company_profile WHERE id = 'main'"
+  );
 
-  if (!myCompany.name || !myCompany.industry) {
+  if (!myCompany || !myCompany.name || !myCompany.industry) {
     return NextResponse.json(
       { error: "Please complete your company profile before running deep research." },
       { status: 400 }
@@ -32,76 +30,80 @@ export async function POST() {
 
   const researchId = uuidv4();
 
-  db.prepare(
+  await db.run(
     `INSERT INTO company_research (id, status)
-     VALUES (?, 'in_progress')`
-  ).run(researchId);
+     VALUES ($1, 'in_progress')`,
+    [researchId]
+  );
 
   try {
     const findings = await runCompanyDeepResearch(myCompany);
 
-    db.prepare(
+    await db.run(
       `UPDATE company_research SET
         status = 'completed',
-        findings = ?,
-        completed_at = datetime('now')
-      WHERE id = ?`
-    ).run(JSON.stringify(findings), researchId);
+        findings = $1,
+        completed_at = NOW()
+      WHERE id = $2`,
+      [JSON.stringify(findings), researchId]
+    );
 
-    // ─── Also create/update a competitor entry + case file for the company ───
-    // This allows the company to appear in Case Files and Compare pages
-
-    const existingCompetitor = db
-      .prepare("SELECT id FROM competitors WHERE id = ?")
-      .get(COMPANY_COMPETITOR_ID);
+    const existingCompetitor = await db.getOne(
+      "SELECT id FROM competitors WHERE id = $1",
+      [COMPANY_COMPETITOR_ID]
+    );
 
     if (existingCompetitor) {
-      db.prepare(
+      await db.run(
         `UPDATE competitors SET
-          name = ?,
-          website = ?,
+          name = $1,
+          website = $2,
           status = 'completed',
-          last_researched = datetime('now'),
+          last_researched = NOW(),
           is_own_company = 1,
-          updated_at = datetime('now')
-        WHERE id = ?`
-      ).run(myCompany.name, null, COMPANY_COMPETITOR_ID);
+          updated_at = NOW()
+        WHERE id = $3`,
+        [myCompany.name, null, COMPANY_COMPETITOR_ID]
+      );
     } else {
-      db.prepare(
+      await db.run(
         `INSERT INTO competitors (id, name, website, notes, research_schedule, status, is_own_company)
-         VALUES (?, ?, NULL, 'Your company self-assessment', 'manual', 'completed', 1)`
-      ).run(COMPANY_COMPETITOR_ID, myCompany.name);
+         VALUES ($1, $2, NULL, 'Your company self-assessment', 'manual', 'completed', 1)`,
+        [COMPANY_COMPETITOR_ID, myCompany.name]
+      );
     }
 
-    // Convert company findings to case file format
     const caseFileFindings = convertCompanyToCaseFileFindings(findings, myCompany.name);
     const caseFileId = uuidv4();
     const summary = findings.overview.summary.substring(0, 200) + "...";
 
-    // Remove old company case files (keep only the latest)
-    db.prepare(
-      "DELETE FROM case_files WHERE competitor_id = ?"
-    ).run(COMPANY_COMPETITOR_ID);
-
-    db.prepare(
-      `INSERT INTO case_files (id, competitor_id, title, summary, research_type, status, findings, completed_at)
-       VALUES (?, ?, ?, ?, 'full', 'completed', ?, datetime('now'))`
-    ).run(
-      caseFileId,
-      COMPANY_COMPETITOR_ID,
-      `Self-Assessment: ${myCompany.name}`,
-      summary,
-      JSON.stringify(caseFileFindings)
+    await db.run(
+      "DELETE FROM case_files WHERE competitor_id = $1",
+      [COMPANY_COMPETITOR_ID]
     );
 
-    const research = db
-      .prepare("SELECT * FROM company_research WHERE id = ?")
-      .get(researchId) as CompanyResearch;
+    await db.run(
+      `INSERT INTO case_files (id, competitor_id, title, summary, research_type, status, findings, completed_at)
+       VALUES ($1, $2, $3, $4, 'full', 'completed', $5, NOW())`,
+      [
+        caseFileId,
+        COMPANY_COMPETITOR_ID,
+        `Self-Assessment: ${myCompany.name}`,
+        summary,
+        JSON.stringify(caseFileFindings),
+      ]
+    );
+
+    const research = await db.getOne<CompanyResearch>(
+      "SELECT * FROM company_research WHERE id = $1",
+      [researchId]
+    );
     return NextResponse.json(research);
   } catch (error) {
-    db.prepare(
-      "UPDATE company_research SET status = 'error' WHERE id = ?"
-    ).run(researchId);
+    await db.run(
+      "UPDATE company_research SET status = 'error' WHERE id = $1",
+      [researchId]
+    );
 
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("Company deep research POST error:", errorMsg);

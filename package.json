@@ -19,9 +19,9 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.2.1",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19.2.13",
     "autoprefixer": "^10.4.24",
-    "better-sqlite3": "^12.6.2",
     "date-fns": "^4.1.0",
     "drizzle-zod": "^0.8.3",
     "lucide-react": "^0.563.0",
@@ -29,6 +29,7 @@
     "openai": "^6.18.0",
     "p-limit": "^7.3.0",
     "p-retry": "^7.1.1",
+    "pg": "^8.18.0",
     "postcss": "^8.5.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -38,7 +39,6 @@
     "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13",
     "@types/uuid": "^10.0.0",
     "typescript": "5.9.3"
   }

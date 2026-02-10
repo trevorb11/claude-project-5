@@ -7,22 +7,19 @@ import {
   fullSyncToGHL,
 } from "@/lib/ghl";
 
-// GET /api/integrations/ghl — get current config + mappings
 export async function GET() {
-  const db = getDb();
+  const db = await getDb();
 
-  const config = db
-    .prepare("SELECT * FROM ghl_config WHERE id = 'main'")
-    .get() as GHLConfig | undefined;
+  const config = await db.getOne<GHLConfig>(
+    "SELECT * FROM ghl_config WHERE id = 'main'"
+  );
 
-  const mappings = db
-    .prepare(
-      `SELECT m.*, c.name as competitor_name
-       FROM ghl_contact_mappings m
-       JOIN competitors c ON c.id = m.competitor_id
-       ORDER BY m.created_at DESC`
-    )
-    .all() as Array<GHLContactMapping & { competitor_name: string }>;
+  const mappings = await db.getAll<GHLContactMapping & { competitor_name: string }>(
+    `SELECT m.*, c.name as competitor_name
+     FROM ghl_contact_mappings m
+     JOIN competitors c ON c.id = m.competitor_id
+     ORDER BY m.created_at DESC`
+  );
 
   return NextResponse.json({
     config: config || null,
@@ -30,56 +27,54 @@ export async function GET() {
   });
 }
 
-// POST /api/integrations/ghl — save config, test connection, or trigger sync
-// Body: { action: "save" | "test" | "sync" | "setup_fields", ...data }
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const db = getDb();
+  const db = await getDb();
 
-  // ─── Save Config ───
   if (body.action === "save") {
-    const existing = db
-      .prepare("SELECT id FROM ghl_config WHERE id = 'main'")
-      .get();
+    const existing = await db.getOne(
+      "SELECT id FROM ghl_config WHERE id = 'main'"
+    );
 
     if (existing) {
-      db.prepare(
+      await db.run(
         `UPDATE ghl_config SET
-          api_key = ?,
-          location_id = ?,
-          enabled = ?,
-          sync_on_research = ?,
-          sync_on_alert = ?,
-          updated_at = datetime('now')
-        WHERE id = 'main'`
-      ).run(
-        body.api_key || "",
-        body.location_id || "",
-        body.enabled ? 1 : 0,
-        body.sync_on_research !== false ? 1 : 0,
-        body.sync_on_alert !== false ? 1 : 0
+          api_key = $1,
+          location_id = $2,
+          enabled = $3,
+          sync_on_research = $4,
+          sync_on_alert = $5,
+          updated_at = NOW()
+        WHERE id = 'main'`,
+        [
+          body.api_key || "",
+          body.location_id || "",
+          body.enabled ? 1 : 0,
+          body.sync_on_research !== false ? 1 : 0,
+          body.sync_on_alert !== false ? 1 : 0,
+        ]
       );
     } else {
-      db.prepare(
+      await db.run(
         `INSERT INTO ghl_config (id, api_key, location_id, enabled, sync_on_research, sync_on_alert)
-         VALUES ('main', ?, ?, ?, ?, ?)`
-      ).run(
-        body.api_key || "",
-        body.location_id || "",
-        body.enabled ? 1 : 0,
-        body.sync_on_research !== false ? 1 : 0,
-        body.sync_on_alert !== false ? 1 : 0
+         VALUES ('main', $1, $2, $3, $4, $5)`,
+        [
+          body.api_key || "",
+          body.location_id || "",
+          body.enabled ? 1 : 0,
+          body.sync_on_research !== false ? 1 : 0,
+          body.sync_on_alert !== false ? 1 : 0,
+        ]
       );
     }
 
-    const config = db
-      .prepare("SELECT * FROM ghl_config WHERE id = 'main'")
-      .get() as GHLConfig;
+    const config = await db.getOne<GHLConfig>(
+      "SELECT * FROM ghl_config WHERE id = 'main'"
+    );
 
     return NextResponse.json({ success: true, config });
   }
 
-  // ─── Test Connection ───
   if (body.action === "test") {
     if (!body.api_key || !body.location_id) {
       return NextResponse.json(
@@ -92,11 +87,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   }
 
-  // ─── Setup Custom Fields ───
   if (body.action === "setup_fields") {
-    const config = db
-      .prepare("SELECT * FROM ghl_config WHERE id = 'main'")
-      .get() as GHLConfig | undefined;
+    const config = await db.getOne<GHLConfig>(
+      "SELECT * FROM ghl_config WHERE id = 'main'"
+    );
 
     if (!config?.api_key || !config?.location_id) {
       return NextResponse.json(
@@ -123,7 +117,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ─── Full Sync ───
   if (body.action === "sync") {
     try {
       const result = await fullSyncToGHL();
@@ -142,11 +135,10 @@ export async function POST(request: NextRequest) {
   );
 }
 
-// DELETE /api/integrations/ghl — disconnect / clear config
 export async function DELETE() {
-  const db = getDb();
-  db.prepare("DELETE FROM ghl_config WHERE id = 'main'").run();
-  db.prepare("DELETE FROM ghl_contact_mappings").run();
+  const db = await getDb();
+  await db.run("DELETE FROM ghl_config WHERE id = 'main'");
+  await db.run("DELETE FROM ghl_contact_mappings");
 
   return NextResponse.json({ success: true });
 }

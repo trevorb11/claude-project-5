@@ -3,33 +3,34 @@ import { getDb } from "@/lib/db";
 import { CompanyProfile } from "@/lib/types";
 
 export async function GET() {
-  const db = getDb();
-  const profile = db
-    .prepare("SELECT * FROM company_profile WHERE id = 'main'")
-    .get() as CompanyProfile;
+  const db = await getDb();
+  const profile = await db.getOne<CompanyProfile>(
+    "SELECT * FROM company_profile WHERE id = 'main'"
+  );
   return NextResponse.json(profile);
 }
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const db = getDb();
+  const db = await getDb();
 
-  db.prepare(
+  await db.run(
     `UPDATE company_profile SET
-      name = ?, industry = ?, description = ?, products = ?,
-      target_market = ?, key_differentiators = ?, updated_at = datetime('now')
-    WHERE id = 'main'`
-  ).run(
-    body.name || "",
-    body.industry || "",
-    body.description || "",
-    body.products || "",
-    body.target_market || "",
-    body.key_differentiators || ""
+      name = $1, industry = $2, description = $3, products = $4,
+      target_market = $5, key_differentiators = $6, updated_at = NOW()
+    WHERE id = 'main'`,
+    [
+      body.name || "",
+      body.industry || "",
+      body.description || "",
+      body.products || "",
+      body.target_market || "",
+      body.key_differentiators || "",
+    ]
   );
 
-  const updated = db
-    .prepare("SELECT * FROM company_profile WHERE id = 'main'")
-    .get() as CompanyProfile;
+  const updated = await db.getOne<CompanyProfile>(
+    "SELECT * FROM company_profile WHERE id = 'main'"
+  );
   return NextResponse.json(updated);
 }

@@ -35,92 +35,84 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const competitorId = searchParams.get("competitor_id");
 
-  const db = getDb();
+  const db = await getDb();
 
   if (competitorId) {
-    const caseFiles = db
-      .prepare(
-        "SELECT * FROM case_files WHERE competitor_id = ? ORDER BY created_at DESC"
-      )
-      .all(competitorId) as CaseFile[];
+    const caseFiles = await db.getAll<CaseFile>(
+      "SELECT * FROM case_files WHERE competitor_id = $1 ORDER BY created_at DESC",
+      [competitorId]
+    );
     return NextResponse.json(ensureScores(caseFiles));
   }
 
-  const caseFiles = db
-    .prepare("SELECT * FROM case_files ORDER BY created_at DESC")
-    .all() as CaseFile[];
+  const caseFiles = await db.getAll<CaseFile>(
+    "SELECT * FROM case_files ORDER BY created_at DESC"
+  );
   return NextResponse.json(ensureScores(caseFiles));
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const db = getDb();
+  const db = await getDb();
 
-  const competitor = db
-    .prepare("SELECT * FROM competitors WHERE id = ?")
-    .get(body.competitor_id) as Competitor | undefined;
+  const competitor = await db.getOne<Competitor>(
+    "SELECT * FROM competitors WHERE id = $1",
+    [body.competitor_id]
+  );
 
   if (!competitor) {
     return NextResponse.json({ error: "Competitor not found" }, { status: 404 });
   }
 
-  const myCompany = db
-    .prepare("SELECT * FROM company_profile WHERE id = 'main'")
-    .get() as CompanyProfile;
+  const myCompany = await db.getOne<CompanyProfile>(
+    "SELECT * FROM company_profile WHERE id = 'main'"
+  );
 
   const caseFileId = uuidv4();
 
-  // Create the case file record as in_progress
-  db.prepare(
+  await db.run(
     `INSERT INTO case_files (id, competitor_id, title, status, research_type)
-     VALUES (?, ?, ?, 'in_progress', ?)`
-  ).run(
-    caseFileId,
-    competitor.id,
-    `Case File: ${competitor.name}`,
-    body.research_type || "full"
+     VALUES ($1, $2, $3, 'in_progress', $4)`,
+    [
+      caseFileId,
+      competitor.id,
+      `Case File: ${competitor.name}`,
+      body.research_type || "full",
+    ]
   );
 
-  // Mark competitor as researching
-  db.prepare("UPDATE competitors SET status = 'researching' WHERE id = ?").run(
-    competitor.id
+  await db.run(
+    "UPDATE competitors SET status = 'researching' WHERE id = $1",
+    [competitor.id]
   );
 
-  // Fetch company deep research if available (for enriched competitor analysis)
-  const companyResearchRow = db
-    .prepare(
-      "SELECT * FROM company_research WHERE status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
-    )
-    .get() as CompanyResearch | undefined;
+  const companyResearchRow = await db.getOne<CompanyResearch>(
+    "SELECT * FROM company_research WHERE status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
+  );
 
   let companyResearch: CompanyResearchFindings | null = null;
   if (companyResearchRow?.findings) {
     try {
       companyResearch = JSON.parse(companyResearchRow.findings);
     } catch {
-      // proceed without company research
     }
   }
 
-  // Check for previous completed case file (for update scans)
-  const previousCaseFile = db
-    .prepare(
-      "SELECT * FROM case_files WHERE competitor_id = ? AND status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
-    )
-    .get(competitor.id) as CaseFile | undefined;
+  const previousCaseFile = await db.getOne<CaseFile>(
+    "SELECT * FROM case_files WHERE competitor_id = $1 AND status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1",
+    [competitor.id]
+  );
 
   const isUpdateScan = previousCaseFile && (body.research_type === "update" || competitor.research_schedule !== "manual");
 
-  // Run the research
   try {
     let findings: CaseFileFindings;
 
     if (isUpdateScan && previousCaseFile?.findings) {
-      // Scheduled / update scan: lightweight web search for changes
       const previousFindings = JSON.parse(previousCaseFile.findings) as CaseFileFindings;
       findings = await runResearchUpdate(
         {
-          myCompany,
+          myCompany: myCompany!,
           competitorName: competitor.name,
           competitorWebsite: competitor.website || undefined,
           competitorNotes: competitor.notes || undefined,
@@ -129,9 +121,8 @@ export async function POST(request: NextRequest) {
         previousFindings
       );
     } else {
-      // Initial deep research: comprehensive analysis with web search
       findings = await runDeepResearch({
-        myCompany,
+        myCompany: myCompany!,
         competitorName: competitor.name,
         competitorWebsite: competitor.website || undefined,
         competitorNotes: competitor.notes || undefined,
@@ -142,74 +133,70 @@ export async function POST(request: NextRequest) {
     const summary =
       findings.overview.summary.substring(0, 200) + "...";
 
-    db.prepare(
+    await db.run(
       `UPDATE case_files SET
         status = 'completed',
-        summary = ?,
-        findings = ?,
-        completed_at = datetime('now')
-      WHERE id = ?`
-    ).run(summary, JSON.stringify(findings), caseFileId);
+        summary = $1,
+        findings = $2,
+        completed_at = NOW()
+      WHERE id = $3`,
+      [summary, JSON.stringify(findings), caseFileId]
+    );
 
-    // ─── Floor Plan Extraction: save any floor plans found in research ───
     if (findings.floor_plans && findings.floor_plans.length > 0) {
-      // Remove old competitor floor plans from research (keep manually added ones)
-      db.prepare(
-        "DELETE FROM floor_plans WHERE competitor_id = ? AND source = 'competitor'"
-      ).run(competitor.id);
-
-      const insertFloorPlan = db.prepare(
-        `INSERT INTO floor_plans (id, source, competitor_id, competitor_name, model_name, bedrooms, bathrooms, sq_ft, stories, garage_spaces, base_price, price_per_sqft, key_features, url)
-         VALUES (?, 'competitor', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      await db.run(
+        "DELETE FROM floor_plans WHERE competitor_id = $1 AND source = 'competitor'",
+        [competitor.id]
       );
 
       for (const fp of findings.floor_plans) {
         const pricePerSqft = fp.base_price && fp.sq_ft ? Math.round(fp.base_price / fp.sq_ft) : null;
-        insertFloorPlan.run(
-          uuidv4(),
-          competitor.id,
-          competitor.name,
-          fp.model_name,
-          fp.bedrooms ?? null,
-          fp.bathrooms ?? null,
-          fp.sq_ft ?? null,
-          fp.stories ?? null,
-          fp.garage_spaces ?? null,
-          fp.base_price ?? null,
-          pricePerSqft,
-          fp.key_features ? JSON.stringify(fp.key_features) : null,
-          fp.url ?? null
+        await db.run(
+          `INSERT INTO floor_plans (id, source, competitor_id, competitor_name, model_name, bedrooms, bathrooms, sq_ft, stories, garage_spaces, base_price, price_per_sqft, key_features, url)
+           VALUES ($1, 'competitor', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [
+            uuidv4(),
+            competitor.id,
+            competitor.name,
+            fp.model_name,
+            fp.bedrooms ?? null,
+            fp.bathrooms ?? null,
+            fp.sq_ft ?? null,
+            fp.stories ?? null,
+            fp.garage_spaces ?? null,
+            fp.base_price ?? null,
+            pricePerSqft,
+            fp.key_features ? JSON.stringify(fp.key_features) : null,
+            fp.url ?? null,
+          ]
         );
       }
     }
 
-    // ─── Change Detection: generate alerts for detected changes ───
     if (previousCaseFile?.findings) {
       try {
         const prevFindings = JSON.parse(previousCaseFile.findings) as CaseFileFindings;
         const changes = detectChanges(competitor.name, prevFindings, findings);
 
-        const insertAlert = db.prepare(
-          `INSERT INTO alerts (id, competitor_id, competitor_name, case_file_id, alert_type, severity, title, description)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        );
-
-        const ghlEnabled = isGHLEnabled();
+        const ghlEnabled = await isGHLEnabled();
 
         for (const change of changes) {
           const alertId = uuidv4();
-          insertAlert.run(
-            alertId,
-            competitor.id,
-            competitor.name,
-            caseFileId,
-            change.alert_type,
-            change.severity,
-            change.title,
-            change.description
+          await db.run(
+            `INSERT INTO alerts (id, competitor_id, competitor_name, case_file_id, alert_type, severity, title, description)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              alertId,
+              competitor.id,
+              competitor.name,
+              caseFileId,
+              change.alert_type,
+              change.severity,
+              change.title,
+              change.description,
+            ]
           );
 
-          // Push alert to GHL contact
           if (ghlEnabled) {
             pushAlertToGHL({
               id: alertId,
@@ -222,20 +209,17 @@ export async function POST(request: NextRequest) {
               description: change.description,
               read: 0,
               created_at: new Date().toISOString(),
-            }).catch(() => {}); // Fire and forget
+            }).catch(() => {});
           }
         }
       } catch {
-        // Don't fail research if change detection has an issue
       }
     }
 
-    // ─── GHL Sync: push updated competitor data to GoHighLevel ───
-    if (isGHLEnabled()) {
-      syncCompetitorToGHL(competitor, findings).catch(() => {}); // Fire and forget
+    if (await isGHLEnabled()) {
+      syncCompetitorToGHL(competitor, findings).catch(() => {});
     }
 
-    // Calculate next_research based on schedule
     let nextResearch: string | null = null;
     if (competitor.research_schedule === "daily") {
       nextResearch = new Date(Date.now() + 86400000).toISOString();
@@ -245,25 +229,29 @@ export async function POST(request: NextRequest) {
       nextResearch = new Date(Date.now() + 2592000000).toISOString();
     }
 
-    db.prepare(
+    await db.run(
       `UPDATE competitors SET
         status = 'completed',
-        last_researched = datetime('now'),
-        next_research = ?
-      WHERE id = ?`
-    ).run(nextResearch, competitor.id);
+        last_researched = NOW(),
+        next_research = $1
+      WHERE id = $2`,
+      [nextResearch, competitor.id]
+    );
 
-    const caseFile = db
-      .prepare("SELECT * FROM case_files WHERE id = ?")
-      .get(caseFileId) as CaseFile;
+    const caseFile = await db.getOne<CaseFile>(
+      "SELECT * FROM case_files WHERE id = $1",
+      [caseFileId]
+    );
     return NextResponse.json(caseFile);
   } catch (error) {
-    db.prepare(
-      "UPDATE case_files SET status = 'error' WHERE id = ?"
-    ).run(caseFileId);
-    db.prepare(
-      "UPDATE competitors SET status = 'error' WHERE id = ?"
-    ).run(competitor.id);
+    await db.run(
+      "UPDATE case_files SET status = 'error' WHERE id = $1",
+      [caseFileId]
+    );
+    await db.run(
+      "UPDATE competitors SET status = 'error' WHERE id = $1",
+      [competitor.id]
+    );
 
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("Competitor research POST error:", errorMsg);

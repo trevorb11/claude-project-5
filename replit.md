@@ -6,7 +6,7 @@ A Next.js 16 application for competitive intelligence research. Users set up the
 ## Tech Stack
 - **Framework**: Next.js 16 (App Router, Turbopack)
 - **Language**: TypeScript
-- **Database**: SQLite via better-sqlite3 (stored in `data/` directory)
+- **Database**: PostgreSQL via Replit built-in database (Neon-backed, persistent across deployments)
 - **Styling**: Tailwind CSS v4 with PostCSS
 - **AI**: OpenAI gpt-5.2 via Replit AI Integrations (auto-configured, billed to Replit credits; Responses API + web_search; retry logic with exponential backoff; falls back to simulated data only when no API key)
 - **Icons**: lucide-react
@@ -46,7 +46,7 @@ src/
   components/
     Sidebar.tsx           - Navigation sidebar
   lib/
-    db.ts                 - SQLite database setup & initialization (tables: company_profile, company_research, competitors, case_files, intelligence_reports, floor_plans, alerts, ghl_config, ghl_field_mappings)
+    db.ts                 - PostgreSQL database setup & initialization (tables: company_profile, company_research, competitors, case_files, intelligence_reports, floor_plans, alerts, ghl_config, ghl_contact_mappings)
     research-agent.ts     - OpenAI-powered research agent with web search (gpt-5.2 + retry logic)
     scheduler.ts          - Background scheduler for automated competitor scans
     change-detection.ts   - Change detection engine (compares old vs new findings to generate alerts)
@@ -87,7 +87,7 @@ src/
 - **Production**: `npm run build` then `npm run start` (port 5000)
 - **Environment**: `AI_INTEGRATIONS_OPENAI_API_KEY` and `AI_INTEGRATIONS_OPENAI_BASE_URL` (auto-set by Replit AI Integrations)
 - **Scheduler**: `CRON_SECRET` env var protects the /api/cron endpoint; background scheduler auto-starts via `src/instrumentation.ts` (runs every 5 minutes)
-- **GHL Integration**: Configured via /integrations page (API key + Location ID stored in SQLite ghl_config table)
+- **GHL Integration**: Configured via /integrations page (API key + Location ID stored in PostgreSQL ghl_config table)
 - **GHL MCP Server**: Also available for direct GHL API access (coexists with built-in client)
 
 ## User Preferences
@@ -95,6 +95,7 @@ src/
 - Navy/orange/teal color palette
 
 ## Recent Changes
+- 2026-02-10: Migrated database from SQLite (better-sqlite3) to PostgreSQL (Replit built-in Neon-backed) for persistent data across deployments — rewrote all API routes with async/await pg queries, parameterized queries ($1/$2 style), removed better-sqlite3 dependency, updated next.config.ts
 - 2026-02-09: Floor plan scan now saves full AI reports as Case Files — the comprehensive narrative (pricing analysis, market segments, design trends, etc.) is saved as a "Floor Plans" case file for the competitor/company, while the structured specs are extracted to the comparison table. Case file page renders floor plan reports with dedicated layout. research_type='floor_plans' distinguishes these from regular research.
 - 2026-02-09: Added CSV upload for floor plans — bulk import from CSV file for company or competitor plans, flexible column matching (aliases for common headers), preview before import, downloadable template, auto-calculates $/sqft
 - 2026-02-09: AI integration hardening — upgraded all AI calls from gpt-4o to gpt-5.2, added retry logic with exponential backoff (2 retries before failure), errors now surface instead of silently returning fake data, added /api/cron endpoint for scheduled competitor scans with background scheduler (every 5 min via instrumentation.ts), CRON_SECRET env var for endpoint protection

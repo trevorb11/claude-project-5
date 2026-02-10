@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import OpenAI from "openai";
 
 const OPENAI_API_KEY = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || "";
@@ -321,7 +322,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Builder name is required for competitor plans" }, { status: 400 });
   }
 
-  const db = getDb();
+  const db = await getDb();
   const imported: unknown[] = [];
 
   for (const plan of plans) {
@@ -331,27 +332,28 @@ export async function PUT(request: NextRequest) {
         ? Math.round(plan.base_price / plan.sq_ft)
         : null;
 
-    db.prepare(
+    await db.run(
       `INSERT INTO floor_plans (id, source, competitor_id, competitor_name, model_name, bedrooms, bathrooms, sq_ft, stories, garage_spaces, base_price, price_per_sqft, key_features, url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      id,
-      source,
-      source === "competitor" ? (competitor_id || null) : null,
-      source === "competitor" ? builder_name : null,
-      plan.model_name,
-      plan.bedrooms ?? null,
-      plan.bathrooms ?? null,
-      plan.sq_ft ?? null,
-      plan.stories ?? null,
-      plan.garage_spaces ?? null,
-      plan.base_price ?? null,
-      pricePerSqft,
-      plan.key_features ? JSON.stringify(plan.key_features) : null,
-      plan.url || null
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [
+        id,
+        source,
+        source === "competitor" ? (competitor_id || null) : null,
+        source === "competitor" ? builder_name : null,
+        plan.model_name,
+        plan.bedrooms ?? null,
+        plan.bathrooms ?? null,
+        plan.sq_ft ?? null,
+        plan.stories ?? null,
+        plan.garage_spaces ?? null,
+        plan.base_price ?? null,
+        pricePerSqft,
+        plan.key_features ? JSON.stringify(plan.key_features) : null,
+        plan.url || null,
+      ]
     );
 
-    const saved = db.prepare("SELECT * FROM floor_plans WHERE id = ?").get(id);
+    const saved = await db.getOne("SELECT * FROM floor_plans WHERE id = $1", [id]);
     imported.push(saved);
   }
 
@@ -373,29 +375,31 @@ export async function PUT(request: NextRequest) {
 
     if (source === "competitor" && competitor_id) {
       caseFileId = uuidv4();
-      db.prepare(
+      await db.run(
         `INSERT INTO case_files (id, competitor_id, title, summary, research_type, status, findings, created_at, completed_at)
-         VALUES (?, ?, ?, ?, 'floor_plans', 'completed', ?, datetime('now'), datetime('now'))`
-      ).run(
-        caseFileId,
-        competitor_id,
-        `Floor Plans — ${builder_name}`,
-        summary,
-        JSON.stringify(findings)
+         VALUES ($1, $2, $3, $4, 'floor_plans', 'completed', $5, NOW(), NOW())`,
+        [
+          caseFileId,
+          competitor_id,
+          `Floor Plans — ${builder_name}`,
+          summary,
+          JSON.stringify(findings),
+        ]
       );
     } else if (source === "company") {
       caseFileId = uuidv4();
-      const companyRow = db.prepare("SELECT id FROM company_profile LIMIT 1").get() as { id: string } | undefined;
+      const companyRow = await db.getOne<{ id: string }>("SELECT id FROM company_profile LIMIT 1");
       if (companyRow) {
-        db.prepare(
+        await db.run(
           `INSERT INTO case_files (id, competitor_id, title, summary, research_type, status, findings, created_at, completed_at)
-           VALUES (?, ?, ?, ?, 'floor_plans', 'completed', ?, datetime('now'), datetime('now'))`
-        ).run(
-          caseFileId,
-          `company_${companyRow.id}`,
-          `Floor Plans — ${builder_name}`,
-          summary,
-          JSON.stringify(findings)
+           VALUES ($1, $2, $3, $4, 'floor_plans', 'completed', $5, NOW(), NOW())`,
+          [
+            caseFileId,
+            `company_${companyRow.id}`,
+            `Floor Plans — ${builder_name}`,
+            summary,
+            JSON.stringify(findings),
+          ]
         );
       }
     }

@@ -5,30 +5,27 @@ import { CompanyProfile, CaseFile, IntelligenceReport, CompanyResearch, CompanyR
 import { generateIntelligenceReport } from "@/lib/research-agent";
 
 export async function GET() {
-  const db = getDb();
-  const reports = db
-    .prepare("SELECT * FROM intelligence_reports ORDER BY created_at DESC")
-    .all() as IntelligenceReport[];
+  const db = await getDb();
+  const reports = await db.getAll<IntelligenceReport>(
+    "SELECT * FROM intelligence_reports ORDER BY created_at DESC"
+  );
   return NextResponse.json(reports);
 }
 
 export async function POST() {
-  const db = getDb();
+  const db = await getDb();
 
-  const myCompany = db
-    .prepare("SELECT * FROM company_profile WHERE id = 'main'")
-    .get() as CompanyProfile;
+  const myCompany = await db.getOne<CompanyProfile>(
+    "SELECT * FROM company_profile WHERE id = 'main'"
+  );
 
-  // Get all completed case files with their latest findings
-  const completedFiles = db
-    .prepare(
-      `SELECT cf.*, c.name as competitor_name
-       FROM case_files cf
-       JOIN competitors c ON cf.competitor_id = c.id
-       WHERE cf.status = 'completed' AND cf.findings IS NOT NULL
-       ORDER BY cf.completed_at DESC`
-    )
-    .all() as (CaseFile & { competitor_name: string })[];
+  const completedFiles = await db.getAll<CaseFile & { competitor_name: string }>(
+    `SELECT cf.*, c.name as competitor_name
+     FROM case_files cf
+     JOIN competitors c ON cf.competitor_id = c.id
+     WHERE cf.status = 'completed' AND cf.findings IS NOT NULL
+     ORDER BY cf.completed_at DESC`
+  );
 
   if (completedFiles.length === 0) {
     return NextResponse.json(
@@ -37,7 +34,6 @@ export async function POST() {
     );
   }
 
-  // Get the latest case file per competitor
   const latestByCompetitor = new Map<string, CaseFile & { competitor_name: string }>();
   for (const cf of completedFiles) {
     if (!latestByCompetitor.has(cf.competitor_id)) {
@@ -50,25 +46,21 @@ export async function POST() {
     findings: JSON.parse(cf.findings!),
   }));
 
-  // Get the latest completed company deep research if available
-  const companyResearchRow = db
-    .prepare(
-      "SELECT * FROM company_research WHERE status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
-    )
-    .get() as CompanyResearch | undefined;
+  const companyResearchRow = await db.getOne<CompanyResearch>(
+    "SELECT * FROM company_research WHERE status = 'completed' AND findings IS NOT NULL ORDER BY completed_at DESC LIMIT 1"
+  );
 
   let companyResearch: CompanyResearchFindings | null = null;
   if (companyResearchRow?.findings) {
     try {
       companyResearch = JSON.parse(companyResearchRow.findings);
     } catch {
-      // If parsing fails, proceed without company research
     }
   }
 
   try {
     const { content, highlights } = await generateIntelligenceReport(
-      myCompany,
+      myCompany!,
       allFindings,
       companyResearch
     );
@@ -76,20 +68,22 @@ export async function POST() {
     const reportId = uuidv4();
     const competitorIds = Array.from(latestByCompetitor.keys()).join(",");
 
-    db.prepare(
+    await db.run(
       `INSERT INTO intelligence_reports (id, title, content, highlights, competitor_ids)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(
-      reportId,
-      `Intelligence Briefing — ${new Date().toLocaleDateString()}`,
-      content,
-      highlights,
-      competitorIds
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        reportId,
+        `Intelligence Briefing — ${new Date().toLocaleDateString()}`,
+        content,
+        highlights,
+        competitorIds,
+      ]
     );
 
-    const report = db
-      .prepare("SELECT * FROM intelligence_reports WHERE id = ?")
-      .get(reportId) as IntelligenceReport;
+    const report = await db.getOne<IntelligenceReport>(
+      "SELECT * FROM intelligence_reports WHERE id = $1",
+      [reportId]
+    );
     return NextResponse.json(report);
   } catch (error) {
     return NextResponse.json(

@@ -188,17 +188,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = getDb();
-    const insert = db.prepare(
-      `INSERT INTO floor_plans (id, source, competitor_id, competitor_name, model_name, bedrooms, bathrooms, sq_ft, stories, garage_spaces, base_price, price_per_sqft, key_features, url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
+    const db = await getDb();
+    const ids: string[] = [];
 
-    const importMany = db.transaction((plans: typeof rows) => {
-      const ids: string[] = [];
-      for (const plan of plans) {
-        const id = uuidv4();
-        insert.run(
+    for (const plan of rows) {
+      const id = uuidv4();
+      await db.run(
+        `INSERT INTO floor_plans (id, source, competitor_id, competitor_name, model_name, bedrooms, bathrooms, sq_ft, stories, garage_spaces, base_price, price_per_sqft, key_features, url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+        [
           id,
           source,
           competitorId || null,
@@ -212,17 +210,17 @@ export async function POST(request: NextRequest) {
           plan.base_price,
           plan.price_per_sqft,
           plan.key_features.length > 0 ? JSON.stringify(plan.key_features) : null,
-          plan.url
-        );
-        ids.push(id);
-      }
-      return ids;
-    });
+          plan.url,
+        ]
+      );
+      ids.push(id);
+    }
 
-    const ids = importMany(rows);
-    const imported = db
-      .prepare(`SELECT * FROM floor_plans WHERE id IN (${ids.map(() => "?").join(",")})`)
-      .all(...ids);
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+    const imported = await db.getAll(
+      `SELECT * FROM floor_plans WHERE id IN (${placeholders})`,
+      ids
+    );
 
     return NextResponse.json({
       imported: imported.length,
