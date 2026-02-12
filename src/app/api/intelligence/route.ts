@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
-import { CompanyProfile, CaseFile, IntelligenceReport, CompanyResearch, CompanyResearchFindings } from "@/lib/types";
+import { CompanyProfile, CaseFile, CaseFileFindings, IntelligenceReport, CompanyResearch, CompanyResearchFindings } from "@/lib/types";
 import { generateIntelligenceReport } from "@/lib/research-agent";
 
 export async function GET() {
