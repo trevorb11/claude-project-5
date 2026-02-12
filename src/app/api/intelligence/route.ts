@@ -65,7 +65,7 @@ export async function POST() {
       } catch {
         return null;
       }
-    }).filter(Boolean) as Array<{ competitorName: string; findings: Record<string, unknown> }>;
+    }).filter(Boolean) as Array<{ competitorName: string; findings: CaseFileFindings }>;
 
     if (allFindings.length === 0) {
       return NextResponse.json(
