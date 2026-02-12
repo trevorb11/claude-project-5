@@ -290,7 +290,7 @@ export default function ComparePage() {
                   </h3>
                   <div>
                     <p className="text-xs font-medium text-accent-emerald mb-1.5">Strengths</p>
-                    {d.findings.market_position.strengths.slice(0, 3).map((s, i) => (
+                    {(d.findings.market_position?.strengths || []).slice(0, 3).map((s, i) => (
                       <div key={i} className="flex items-start gap-1.5 text-xs text-text-secondary mb-1">
                         <TrendingUp className="w-3 h-3 text-accent-emerald shrink-0 mt-0.5" />
                         {s}
@@ -299,7 +299,7 @@ export default function ComparePage() {
                   </div>
                   <div>
                     <p className="text-xs font-medium text-accent-red mb-1.5">Weaknesses</p>
-                    {d.findings.market_position.weaknesses.slice(0, 3).map((w, i) => (
+                    {(d.findings.market_position?.weaknesses || []).slice(0, 3).map((w, i) => (
                       <div key={i} className="flex items-start gap-1.5 text-xs text-text-secondary mb-1">
                         <AlertTriangle className="w-3 h-3 text-accent-red shrink-0 mt-0.5" />
                         {w}
@@ -324,7 +324,7 @@ export default function ComparePage() {
                   <h3 className="text-sm font-semibold text-center border-b border-border pb-2">
                     {d.competitor.name}
                   </h3>
-                  {d.findings.products_and_services.items.slice(0, 4).map((item, i) => (
+                  {(d.findings.products_and_services?.items || []).slice(0, 4).map((item, i) => (
                     <div key={i} className="p-2 bg-bg-secondary rounded-lg">
                       <div className="flex items-start justify-between gap-1">
                         <p className="text-xs font-medium text-text-primary">{item.name}</p>
@@ -359,7 +359,7 @@ export default function ComparePage() {
                   <div>
                     <p className="text-xs font-medium text-text-muted mb-1">Target Segments</p>
                     <div className="flex flex-wrap gap-1">
-                      {d.findings.customer_intelligence.target_segments.slice(0, 4).map((seg, i) => (
+                      {(d.findings.customer_intelligence?.target_segments || []).slice(0, 4).map((seg, i) => (
                         <span
                           key={i}
                           className="text-[10px] bg-accent-amber/15 text-accent-amber px-1.5 py-0.5 rounded"
@@ -372,7 +372,7 @@ export default function ComparePage() {
                   <div>
                     <p className="text-xs font-medium text-text-muted mb-1">Sentiment</p>
                     <p className="text-xs text-text-secondary line-clamp-3">
-                      {d.findings.customer_intelligence.sentiment}
+                      {d.findings.customer_intelligence?.sentiment || "No data available"}
                     </p>
                   </div>
                 </div>
@@ -394,13 +394,13 @@ export default function ComparePage() {
                   </h3>
                   <div>
                     <p className="text-xs font-medium text-accent-red mb-1.5">Threats</p>
-                    {d.findings.competitive_analysis.direct_threats.slice(0, 3).map((t, i) => (
+                    {(d.findings.competitive_analysis?.direct_threats || []).slice(0, 3).map((t, i) => (
                       <p key={i} className="text-xs text-text-secondary mb-1">• {t}</p>
                     ))}
                   </div>
                   <div>
                     <p className="text-xs font-medium text-accent-emerald mb-1.5">Opportunities</p>
-                    {d.findings.competitive_analysis.opportunities_for_you.slice(0, 3).map((o, i) => (
+                    {(d.findings.competitive_analysis?.opportunities_for_you || []).slice(0, 3).map((o, i) => (
                       <p key={i} className="text-xs text-text-secondary mb-1">• {o}</p>
                     ))}
                   </div>
