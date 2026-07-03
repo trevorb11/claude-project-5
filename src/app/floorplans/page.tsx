@@ -98,6 +98,7 @@ export default function FloorPlansPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [scoring, setScoring] = useState(false);
   const [filterSource, setFilterSource] = useState<"all" | "company" | "competitor">("all");
+  const [showMarketChart, setShowMarketChart] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
@@ -821,15 +822,37 @@ export default function FloorPlansPage() {
               const priced = plans.filter((p) => p.sq_ft && p.price_per_sqft);
               if (priced.length < 3) return null;
               return (
-                <div className="bg-bg-card border border-border rounded-xl p-5 mb-6">
-                  <h2 className="font-semibold text-sm flex items-center gap-2 mb-1">
-                    <BarChart3 className="w-4 h-4 text-accent-blue" />
-                    Market Position
-                  </h2>
-                  <p className="text-xs text-text-muted mb-3">
-                    Price per square foot by home size. Lower-right = more home for the money.
-                  </p>
-                  <ScatterChart
+                <div className="bg-bg-card border border-border rounded-xl mb-6 print:hidden">
+                  <button
+                    onClick={() => setShowMarketChart(!showMarketChart)}
+                    className="w-full flex items-center justify-between p-4 text-left"
+                  >
+                    <div>
+                      <h2 className="font-semibold text-sm flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-accent-blue" />
+                        Market Position
+                        <span className="text-[10px] font-normal text-text-muted">
+                          ({priced.length} priced plans)
+                        </span>
+                      </h2>
+                      {!showMarketChart && (
+                        <p className="text-xs text-text-muted mt-0.5">
+                          Price per square foot by home size — click to expand
+                        </p>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${
+                        showMarketChart ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {showMarketChart && (
+                    <div className="px-5 pb-5">
+                      <p className="text-xs text-text-muted mb-3">
+                        Price per square foot by home size. Lower-right = more home for the money.
+                      </p>
+                      <ScatterChart
                     points={priced.map((p) => {
                       const isOwn = p.source === "company";
                       const group = isOwn
@@ -846,11 +869,13 @@ export default function FloorPlansPage() {
                           : colorMap[p.competitor_name || ""]?.dot || "#e8702a",
                       };
                     })}
-                    xLabel="Square Feet"
-                    yLabel="Price / Sq Ft"
-                    xFormat={(v) => v.toLocaleString()}
-                    yFormat={(v) => `$${Math.round(v)}`}
-                  />
+                        xLabel="Square Feet"
+                        yLabel="Price / Sq Ft"
+                        xFormat={(v) => v.toLocaleString()}
+                        yFormat={(v) => `$${Math.round(v)}`}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })()}
