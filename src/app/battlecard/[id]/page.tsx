@@ -22,6 +22,7 @@ import {
   CaseFileFindings,
   CompanyProfile,
 } from "@/lib/types";
+import { stripCitations } from "@/lib/text";
 
 export default function BattleCardPage() {
   const params = useParams();
@@ -258,7 +259,7 @@ export default function BattleCardPage() {
                     <span className="text-accent-emerald shrink-0 mt-0.5 font-bold">
                       +
                     </span>
-                    {o}
+                    {stripCitations(o)}
                   </div>
                 ))}
               {findings.market_position.weaknesses.slice(0, 2).map((w, i) => (
@@ -269,7 +270,7 @@ export default function BattleCardPage() {
                   <span className="text-accent-emerald shrink-0 mt-0.5 font-bold">
                     +
                   </span>
-                  Their weakness: {w}
+                  Their weakness: {stripCitations(w)}
                 </div>
               ))}
             </div>
@@ -291,7 +292,7 @@ export default function BattleCardPage() {
                     <span className="text-accent-red shrink-0 mt-0.5 font-bold">
                       -
                     </span>
-                    {t}
+                    {stripCitations(t)}
                   </div>
                 ))}
               {findings.market_position.strengths.slice(0, 2).map((s, i) => (
@@ -302,7 +303,7 @@ export default function BattleCardPage() {
                   <span className="text-accent-red shrink-0 mt-0.5 font-bold">
                     -
                   </span>
-                  Their strength: {s}
+                  Their strength: {stripCitations(s)}
                 </div>
               ))}
             </div>
@@ -331,7 +332,7 @@ export default function BattleCardPage() {
                     {item.name}
                   </span>
                   <span className="text-xs font-medium bg-accent-emerald/15 text-accent-emerald px-2 py-0.5 rounded">
-                    {item.pricing}
+                    {stripCitations(item.pricing)}
                   </span>
                 </div>
               ))}

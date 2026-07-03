@@ -15,12 +15,18 @@ import {
   Building2,
 } from "lucide-react";
 import { Competitor, CaseFile, CaseFileFindings } from "@/lib/types";
+import { RadarChart } from "@/components/RadarChart";
+import { stripCitations } from "@/lib/text";
 
 interface CompetitorData {
   competitor: Competitor;
   findings: CaseFileFindings;
   caseFile: CaseFile;
 }
+
+// Validated categorical chart palette: blue is reserved for your own company.
+const SERIES_COLORS = ["#e8702a", "#8b5cf6", "#0d9488", "#c2410c"];
+const OWN_COLOR = "#2f62b8";
 
 const SCORE_DIMENSIONS = [
   { key: "product_strength", label: "Product Strength" },
@@ -90,6 +96,24 @@ export default function ComparePage() {
   };
 
   const competitorData = getCompetitorData();
+
+  // Stable color per entity: own company is always blue; others keep their
+  // color from their position in the tracked-competitor list, regardless of
+  // which ones are currently selected.
+  const nonOwnIds = competitors.filter((c) => c.is_own_company !== 1).map((c) => c.id);
+  const seriesColor = (comp: Competitor) =>
+    comp.is_own_company === 1
+      ? OWN_COLOR
+      : SERIES_COLORS[nonOwnIds.indexOf(comp.id) % SERIES_COLORS.length];
+
+  const overallScore = (d: CompetitorData) => {
+    const scores = d.findings.competitive_scores;
+    if (!scores) return 0;
+    const dims = SCORE_DIMENSIONS.filter((dim) => dim.key !== "overall_threat_level");
+    const sum = dims.reduce((acc, dim) => acc + (scores[dim.key] ?? 0), 0);
+    return Math.round((sum / dims.length) * 10) / 10;
+  };
+
   const hasCompletedFiles = (id: string) =>
     caseFiles.some(
       (f) => f.competitor_id === id && f.status === "completed" && f.findings
@@ -197,6 +221,28 @@ export default function ComparePage() {
             </p>
           </div>
 
+          {/* Radar Overview */}
+          <div className="bg-bg-card border border-border rounded-xl p-5 animate-fade-in">
+            <h2 className="font-semibold text-sm flex items-center gap-2 mb-2">
+              <BarChart3 className="w-4 h-4 text-accent-blue" />
+              Competitive Profile
+            </h2>
+            <p className="text-xs text-text-muted mb-3">
+              All seven dimensions at a glance — a larger footprint means a stronger overall position.
+            </p>
+            <RadarChart
+              axes={SCORE_DIMENSIONS.map((d) => d.label)}
+              series={competitorData.map((d) => ({
+                name: d.competitor.name,
+                color: seriesColor(d.competitor),
+                isOwn: d.competitor.is_own_company === 1,
+                values: SCORE_DIMENSIONS.map(
+                  (dim) => d.findings.competitive_scores?.[dim.key] ?? 0
+                ),
+              }))}
+            />
+          </div>
+
           {/* Scorecard Comparison */}
           <div className="bg-bg-card border border-border rounded-xl p-5 animate-fade-in">
             <h2 className="font-semibold text-sm flex items-center gap-2 mb-4">
@@ -271,6 +317,36 @@ export default function ComparePage() {
                 })}
               </div>
             ))}
+
+            {/* Overall composite (threat level excluded) */}
+            <div
+              className="grid gap-4 py-3 border-t-2 border-border-highlight mt-1"
+              style={{ gridTemplateColumns: `180px repeat(${competitorData.length}, 1fr)` }}
+            >
+              <span className="text-xs font-semibold self-center">Overall Score</span>
+              {competitorData.map((d) => {
+                const score = overallScore(d);
+                const best = Math.max(...competitorData.map(overallScore));
+                const isBest = score === best && competitorData.length > 1;
+                return (
+                  <div key={d.competitor.id} className="text-center">
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-sm font-bold px-2.5 py-1 rounded-lg ${
+                        isBest
+                          ? "bg-accent-emerald/15 text-accent-emerald"
+                          : "bg-bg-secondary text-text-secondary"
+                      }`}
+                    >
+                      {score.toFixed(1)}/10
+                      {isBest && <Check className="w-3.5 h-3.5" />}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-text-muted mt-2">
+              Overall = average of all dimensions except threat level.
+            </p>
           </div>
 
           {/* Strengths & Weaknesses */}
@@ -293,7 +369,7 @@ export default function ComparePage() {
                     {(d.findings.market_position?.strengths || []).slice(0, 3).map((s, i) => (
                       <div key={i} className="flex items-start gap-1.5 text-xs text-text-secondary mb-1">
                         <TrendingUp className="w-3 h-3 text-accent-emerald shrink-0 mt-0.5" />
-                        {s}
+                        {stripCitations(s)}
                       </div>
                     ))}
                   </div>
@@ -302,7 +378,7 @@ export default function ComparePage() {
                     {(d.findings.market_position?.weaknesses || []).slice(0, 3).map((w, i) => (
                       <div key={i} className="flex items-start gap-1.5 text-xs text-text-secondary mb-1">
                         <AlertTriangle className="w-3 h-3 text-accent-red shrink-0 mt-0.5" />
-                        {w}
+                        {stripCitations(w)}
                       </div>
                     ))}
                   </div>
@@ -329,13 +405,13 @@ export default function ComparePage() {
                       <div className="flex items-start justify-between gap-1">
                         <p className="text-xs font-medium text-text-primary">{item.name}</p>
                         {item.pricing && (
-                          <span className="text-[10px] bg-accent-emerald/20 text-accent-emerald px-1.5 py-0.5 rounded shrink-0">
-                            {item.pricing}
+                          <span className="text-[10px] bg-accent-emerald/20 text-accent-emerald px-1.5 py-0.5 rounded max-w-[45%] break-words text-right">
+                            {stripCitations(item.pricing)}
                           </span>
                         )}
                       </div>
                       <p className="text-[11px] text-text-muted mt-0.5 line-clamp-2">
-                        {item.description}
+                        {stripCitations(item.description)}
                       </p>
                     </div>
                   ))}
@@ -372,7 +448,7 @@ export default function ComparePage() {
                   <div>
                     <p className="text-xs font-medium text-text-muted mb-1">Sentiment</p>
                     <p className="text-xs text-text-secondary line-clamp-3">
-                      {d.findings.customer_intelligence?.sentiment || "No data available"}
+                      {stripCitations(d.findings.customer_intelligence?.sentiment) || "No data available"}
                     </p>
                   </div>
                 </div>
@@ -395,13 +471,13 @@ export default function ComparePage() {
                   <div>
                     <p className="text-xs font-medium text-accent-red mb-1.5">Threats</p>
                     {(d.findings.competitive_analysis?.direct_threats || []).slice(0, 3).map((t, i) => (
-                      <p key={i} className="text-xs text-text-secondary mb-1">• {t}</p>
+                      <p key={i} className="text-xs text-text-secondary mb-1">• {stripCitations(t)}</p>
                     ))}
                   </div>
                   <div>
                     <p className="text-xs font-medium text-accent-emerald mb-1.5">Opportunities</p>
                     {(d.findings.competitive_analysis?.opportunities_for_you || []).slice(0, 3).map((o, i) => (
-                      <p key={i} className="text-xs text-text-secondary mb-1">• {o}</p>
+                      <p key={i} className="text-xs text-text-secondary mb-1">• {stripCitations(o)}</p>
                     ))}
                   </div>
                 </div>

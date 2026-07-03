@@ -29,6 +29,7 @@ import {
   Home,
 } from "lucide-react";
 import { Competitor, CaseFile, CaseFileFindings } from "@/lib/types";
+import { stripCitations } from "@/lib/text";
 
 export default function CompetitorDetailPage() {
   const params = useParams();
@@ -387,12 +388,12 @@ export default function CompetitorDetailPage() {
                     <h4 className="text-sm font-medium">{item.name}</h4>
                     {item.pricing && (
                       <span className="text-xs bg-accent-emerald/20 text-accent-emerald px-2 py-0.5 rounded">
-                        {item.pricing}
+                        {stripCitations(item.pricing)}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-text-muted mt-1">
-                    {item.description}
+                    {stripCitations(item.description)}
                   </p>
                 </div>
               ))}

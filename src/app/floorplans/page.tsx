@@ -29,8 +29,10 @@ import {
   Upload,
   FileText,
   Download,
+  BarChart3,
 } from "lucide-react";
 import { FloorPlan, Competitor } from "@/lib/types";
+import { ScatterChart } from "@/components/ScatterChart";
 
 type SortField =
   | "base_price"
@@ -46,7 +48,7 @@ type SortDir = "asc" | "desc";
 const COMPETITOR_COLORS = [
   { bg: "rgba(232, 112, 42, 0.08)", border: "rgba(232, 112, 42, 0.25)", text: "#c45a1f", dot: "#e8702a", label: "Orange" },
   { bg: "rgba(139, 92, 246, 0.08)", border: "rgba(139, 92, 246, 0.25)", text: "#7c3aed", dot: "#8b5cf6", label: "Purple" },
-  { bg: "rgba(91, 168, 160, 0.08)", border: "rgba(91, 168, 160, 0.25)", text: "#3d8b83", dot: "#5ba8a0", label: "Teal" },
+  { bg: "rgba(13, 148, 136, 0.08)", border: "rgba(13, 148, 136, 0.25)", text: "#0f766e", dot: "#0d9488", label: "Teal" },
   { bg: "rgba(234, 88, 12, 0.08)", border: "rgba(234, 88, 12, 0.25)", text: "#c2410c", dot: "#ea580c", label: "Rust" },
   { bg: "rgba(16, 185, 129, 0.08)", border: "rgba(16, 185, 129, 0.25)", text: "#059669", dot: "#10b981", label: "Emerald" },
   { bg: "rgba(244, 63, 94, 0.08)", border: "rgba(244, 63, 94, 0.25)", text: "#e11d48", dot: "#f43f5e", label: "Rose" },
@@ -783,7 +785,7 @@ export default function FloorPlansPage() {
         {/* Summary Cards */}
         {plans.length > 0 && (
           <>
-            <div className="grid grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
               <SummaryCard
                 label="Total Models"
                 value={plans.length.toString()}
@@ -813,6 +815,45 @@ export default function FloorPlansPage() {
                 color="text-accent-amber"
               />
             </div>
+
+            {/* Market Position Chart */}
+            {(() => {
+              const priced = plans.filter((p) => p.sq_ft && p.price_per_sqft);
+              if (priced.length < 3) return null;
+              return (
+                <div className="bg-bg-card border border-border rounded-xl p-5 mb-6">
+                  <h2 className="font-semibold text-sm flex items-center gap-2 mb-1">
+                    <BarChart3 className="w-4 h-4 text-accent-blue" />
+                    Market Position
+                  </h2>
+                  <p className="text-xs text-text-muted mb-3">
+                    Price per square foot by home size. Lower-right = more home for the money.
+                  </p>
+                  <ScatterChart
+                    points={priced.map((p) => {
+                      const isOwn = p.source === "company";
+                      const group = isOwn
+                        ? "Our Plans"
+                        : p.competitor_name || "Competitor";
+                      return {
+                        x: p.sq_ft!,
+                        y: p.price_per_sqft!,
+                        label: p.model_name,
+                        group,
+                        isOwn,
+                        color: isOwn
+                          ? "#2f62b8"
+                          : colorMap[p.competitor_name || ""]?.dot || "#e8702a",
+                      };
+                    })}
+                    xLabel="Square Feet"
+                    yLabel="Price / Sq Ft"
+                    xFormat={(v) => v.toLocaleString()}
+                    yFormat={(v) => `$${Math.round(v)}`}
+                  />
+                </div>
+              );
+            })()}
 
             {/* Filter + Sort Controls */}
             <div className="flex items-center justify-between mb-4 print:hidden">

@@ -15,6 +15,7 @@ import {
   Bell,
 } from "lucide-react";
 import { Competitor, CaseFile, CompanyProfile, IntelligenceReport, IntelligenceHighlights, CompetitiveAlert } from "@/lib/types";
+import { stripCitations } from "@/lib/text";
 
 export default function Dashboard() {
   const [company, setCompany] = useState<CompanyProfile | null>(null);
@@ -47,6 +48,24 @@ export default function Dashboard() {
   const scheduledCompetitors = competitors.filter(
     (c) => c.research_schedule !== "manual"
   );
+
+  const threatRanking = competitors
+    .filter((c) => c.is_own_company !== 1)
+    .map((c) => {
+      const file = caseFiles.find(
+        (f) => f.competitor_id === c.id && f.status === "completed" && f.findings
+      );
+      if (!file) return null;
+      try {
+        const scores = JSON.parse(file.findings!)?.competitive_scores;
+        if (!scores) return null;
+        return { competitor: c, threat: Number(scores.overall_threat_level) || 0 };
+      } catch {
+        return null;
+      }
+    })
+    .filter((t): t is { competitor: Competitor; threat: number } => t !== null)
+    .sort((a, b) => b.threat - a.threat);
 
   const latestReport = reports[0];
   let highlights: IntelligenceHighlights | null = null;
@@ -104,7 +123,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-4 gap-4 animate-fade-in" style={{ animationDelay: "0.1s" }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in" style={{ animationDelay: "0.1s" }}>
         <StatCard
           icon={<Crosshair className="w-5 h-5 text-accent-blue" />}
           label="Competitors Tracked"
@@ -147,9 +166,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Latest Intelligence */}
-        <div className="col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4">
           {highlights ? (
             <div className="bg-bg-card border border-border rounded-xl p-5 animate-fade-in" style={{ animationDelay: "0.2s" }}>
               <div className="flex items-center justify-between mb-4">
@@ -188,7 +207,7 @@ export default function Dashboard() {
                         {insight.impact}
                       </span>
                       <div>
-                        <span className="text-sm">{insight.insight.substring(0, 120)}...</span>
+                        <span className="text-sm">{stripCitations(insight.insight).substring(0, 120)}...</span>
                         {insight.competitor && (
                           <span className="text-xs text-text-muted ml-2">
                             — {insight.competitor}
@@ -206,7 +225,7 @@ export default function Dashboard() {
                   {highlights.threats.slice(0, 2).map((t, i) => (
                     <div key={i} className="flex items-start gap-2 text-sm text-text-secondary mb-1">
                       <AlertTriangle className="w-3.5 h-3.5 text-accent-red shrink-0 mt-0.5" />
-                      {t}
+                      {stripCitations(t)}
                     </div>
                   ))}
                 </div>
@@ -218,7 +237,7 @@ export default function Dashboard() {
                   {highlights.opportunities.slice(0, 2).map((o, i) => (
                     <div key={i} className="flex items-start gap-2 text-sm text-text-secondary mb-1">
                       <TrendingUp className="w-3.5 h-3.5 text-accent-emerald shrink-0 mt-0.5" />
-                      {o}
+                      {stripCitations(o)}
                     </div>
                   ))}
                 </div>
@@ -298,6 +317,59 @@ export default function Dashboard() {
 
         {/* Right Column */}
         <div className="space-y-4">
+          {/* Threat Matrix */}
+          {threatRanking.length > 0 && (
+            <div className="bg-bg-card border border-border rounded-xl p-5 animate-fade-in" style={{ animationDelay: "0.15s" }}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-sm flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-accent-red" />
+                  Threat Matrix
+                </h2>
+                <Link href="/compare" className="text-xs text-accent-blue hover:underline">
+                  Compare
+                </Link>
+              </div>
+              <div className="space-y-2.5">
+                {threatRanking.slice(0, 5).map(({ competitor: c, threat }, i) => (
+                  <Link key={c.id} href={`/competitor/${c.id}`} className="block group">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium group-hover:text-accent-blue transition-colors">
+                        <span className="text-text-muted mr-1.5">{i + 1}.</span>
+                        {c.name}
+                      </span>
+                      <span
+                        className={`text-xs font-bold ${
+                          threat >= 8
+                            ? "text-accent-red"
+                            : threat >= 6
+                            ? "text-accent-amber"
+                            : "text-accent-emerald"
+                        }`}
+                      >
+                        {threat}/10
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          threat >= 8
+                            ? "bg-accent-red"
+                            : threat >= 6
+                            ? "bg-accent-amber"
+                            : "bg-accent-emerald"
+                        }`}
+                        style={{ width: `${threat * 10}%` }}
+                      />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <p className="text-[10px] text-text-muted mt-3">
+                Threat level from each competitor&apos;s latest research.
+              </p>
+            </div>
+          )}
+
           {/* Competitors */}
           <div className="bg-bg-card border border-border rounded-xl p-5 animate-fade-in" style={{ animationDelay: "0.2s" }}>
             <div className="flex items-center justify-between mb-4">
